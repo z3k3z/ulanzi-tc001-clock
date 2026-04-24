@@ -281,34 +281,71 @@ This is considered a major architectural milestone.
 
 ---
 
-## Immediate Next Architectural Layer
-Next layer should be:
-
-# DisplaySurface
+## DisplaySurface Layer
+DisplaySurface is now implemented, integrated into `main.cpp`, built, deployed, and proven on device.
 
 Responsibilities:
-- own LED buffer writes
 - accept logical `(x,y)` coordinates
-- internally call CoordinateMapper
-- isolate FastLED index usage
+- call `CoordinateMapper` to obtain a physical LED index
+- call `LEDBuffer` to obtain writable LED storage
+- set pixel color without exposing strip-index concerns to callers
 
-Goal:
-No future rendering code should manually think in strip indices.
-
-Desired semantic API shape:
+Current public API:
 ```cpp
-setPixel(x, y, color)
+bool setPixelColor(int iX, int iY, const CRGB& color)
 ```
+
+Design rule:
+Future rendering code should not touch raw LED indices directly. It should write through `DisplaySurface` or higher abstractions.
+
+Error behavior:
+`DisplaySurface` participates in the `EH` status/epilogue pattern but intentionally does not emit diagnostics automatically. It returns failure upward and lets the caller decide severity.
+
+---
+
+## LEDBuffer Layer
+`LEDBuffer` is implemented as the owner of physical LED storage.
+
+Responsibilities:
+- own the fixed 256-element `CRGB` array
+- expose LED count
+- expose indexed LED access through a status-return method
+- expose raw buffer access only for the FastLED initialization boundary
+
+Current public concepts:
+```cpp
+bool getLEDAt(unsigned int uiIndex, CRGB*& pLED)
+unsigned int getCount() const
+CRGB* getBuffer()
+```
+
+`getBuffer()` is tolerated only as a hardware/library integration escape hatch for `FastLED.addLeds(...)`; it should not become a general rendering API.
+
+---
+
+## Current Object Graph
+Current `main.cpp` composition:
+```cpp
+static CoordinateMapper gCoordinateMapper(kMatrixWidth, kMatrixHeight);
+static LEDBuffer        gLEDBuffer;
+static DisplaySurface   gDisplaySurface(gCoordinateMapper, gLEDBuffer);
+```
+
+This confirms the intended ownership structure:
+- `LEDBuffer` owns storage
+- `CoordinateMapper` owns coordinate-to-index mapping
+- `DisplaySurface` references both and performs logical pixel mutation
 
 ---
 
 ## Planned Layer Growth Order
 1. CoordinateMapper ✅
-2. DisplaySurface
-3. Canvas / placement abstraction
-4. Digit renderer
-5. Transition / animation engine
-6. Clock semantics
+2. LEDBuffer ✅
+3. DisplaySurface ✅
+4. Canvas / placement abstraction
+5. Digit renderer
+6. Transition / animation engine
+7. Clock semantics
 
 ---
 
@@ -343,4 +380,3 @@ Do not skip directly into digit rendering while bypassing:
 Architectural drift here would recreate physical-strip concerns in higher layers.
 
 That must be avoided.
-

@@ -8,7 +8,7 @@ BraceWrapping:
   AfterControlStatement: false
   AfterClass: false
   AfterStruct: false
-AllowShortFunctionsOnASingleLine: None
+AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: false
 ColumnLimit: 100
 PointerAlignment: Left

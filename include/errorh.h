@@ -55,4 +55,8 @@ typedef struct _EHErrorContext {
       Serial.print(" 0x");                                                                         \
       Serial.print(ehEc.lData, HEX);                                                               \
    } while (0);
+
+#define EH_PACK_INT16_TO_LONG(iHigh, iLow)                                                         \
+   ((((long)((unsigned short)(iHigh))) << 16) | ((unsigned short)(iLow)))
+
 #endif

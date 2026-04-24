@@ -5,6 +5,7 @@
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
     "cSpell.words": [
-        "ERRORH"
-    ]
+        "ERRORH",
+        "LEDBUFFER"
+    ],
 }
