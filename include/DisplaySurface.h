@@ -6,13 +6,19 @@
 
 class DisplaySurface {
  private:
+   static constexpr uint8_t _kDisplayPin = 32;
+   static constexpr uint8_t _kBrightness = 16;
+
    CoordinateMapper& _coordinateMapper;
-   LEDBuffer&        _LEDBuffer;
+   LEDBuffer&        _ledBuffer;
 
  public:
    DisplaySurface(CoordinateMapper& coordinateMapper, LEDBuffer& ledBuffer)
-       : _coordinateMapper(coordinateMapper), _LEDBuffer(ledBuffer) {}
+       : _coordinateMapper(coordinateMapper), _ledBuffer(ledBuffer) {}
 
+   bool initialize();
    bool setPixelColor(int iX, int iY, const CRGB& color);
+   void clear(bool fWriteThrough = false);
+   void show();
 };
 #endif

@@ -326,15 +326,71 @@ CRGB* getBuffer()
 ## Current Object Graph
 Current `main.cpp` composition:
 ```cpp
-static CoordinateMapper gCoordinateMapper(kMatrixWidth, kMatrixHeight);
-static LEDBuffer        gLEDBuffer;
-static DisplaySurface   gDisplaySurface(gCoordinateMapper, gLEDBuffer);
+static Application gApplication;
 ```
+
+`main.cpp` is now a thin Arduino shell:
+```cpp
+void setup() {
+    gApplication.initialize();
+}
+
+void loop() {
+    gApplication.tick();
+}
+```
+
+Application now owns:
+- `CoordinateMapper`
+- `LEDBuffer`
+- `DisplaySurface`
+- logical sweep state
+- timing state
 
 This confirms the intended ownership structure:
 - `LEDBuffer` owns storage
 - `CoordinateMapper` owns coordinate-to-index mapping
 - `DisplaySurface` references both and performs logical pixel mutation
+- `Application` owns runtime composition and sequencing
+
+---
+
+## Application Layer
+`Application` is now the top-level owner of runtime project state.
+
+Responsibilities:
+- device bring-up orchestration
+- buzzer suppression setup
+- time-step scheduling
+- demo sequencing
+- calling render operations
+
+Design rule:
+`main.cpp` should remain framework shell only.
+
+---
+
+## FastLED Boundary
+FastLED is now hidden fully behind `DisplaySurface` during runtime.
+
+`DisplaySurface` now owns:
+- FastLED initialization
+- frame clear
+- frame presentation (`show()`)
+
+This means:
+- `Application` no longer directly manipulates FastLED
+- raw LED buffer ownership remains in `LEDBuffer`
+- FastLED is treated purely as transport infrastructure
+
+Important design decision:
+FastLED initialization occurs through a discrete `DisplaySurface::initialize()` method, not in the constructor.
+
+Reason:
+embedded object construction should remain lightweight; hardware registration belongs in explicit initialization flow.
+
+Architectural rule going forward:
+Higher layers should not call FastLED directly.
 
 ---
 

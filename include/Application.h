@@ -8,8 +8,6 @@
 
 class Application {
  private:
-   static constexpr uint8_t       _kDisplayPin     = 32;
-   static constexpr uint8_t       _kBrightness     = 16;
    static constexpr uint8_t       _kBuzzerPin      = 15;
    static constexpr unsigned int  _kMatrixWidth    = 32;
    static constexpr unsigned int  _kMatrixHeight   = 8;

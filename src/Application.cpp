@@ -1,6 +1,5 @@
 #include "Application.h"
 #include "errorh.h"
-#include <FastLED.h>
 
 Application::Application()
     : _coordinateMapper(_kMatrixWidth, _kMatrixHeight), _ledBuffer(),
@@ -9,17 +8,12 @@ Application::Application()
 }
 
 void Application::initialize() {
-   const uint16_t uiLedCount = (uint16_t)_ledBuffer.getCount();
-   CRGB*          pLeds      = _ledBuffer.getBuffer();
-
    Serial.begin(115200);
    delay(500);
 
    pinMode(_kBuzzerPin, INPUT_PULLDOWN);
 
-   FastLED.addLeds<WS2812B, _kDisplayPin, GRB>(pLeds, uiLedCount);
-   FastLED.setBrightness(_kBrightness);
-   FastLED.clear(true);
+   _displaySurface.initialize();
 
    _ulLastStepMs = millis();
 
@@ -61,7 +55,7 @@ bool Application::renderCurrentPixel() {
    EHInitialize;
    bool fSuccess = false;
 
-   FastLED.clear(false);
+   _displaySurface.clear();
 
    for (unsigned int uiTrailOffset = 0; uiTrailOffset < _kTrailLength; ++uiTrailOffset) {
       unsigned int uiLinearPosition = (_uiCurrentY * _kMatrixWidth) + _uiCurrentX;
@@ -81,7 +75,7 @@ bool Application::renderCurrentPixel() {
       EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(uiTrailX, uiTrailY));
    }
 
-   FastLED.show();
+   _displaySurface.show();
 
 End:
    return EHIsSuccess;

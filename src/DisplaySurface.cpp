@@ -1,5 +1,19 @@
 #include "DisplaySurface.h"
 #include "errorh.h"
+#include <FastLED.h>
+
+bool DisplaySurface::initialize() {
+   EHInitialize;
+   const uint16_t uiLedCount = (uint16_t)_ledBuffer.getCount();
+   CRGB*          pLEDs      = _ledBuffer.getBuffer();
+
+   FastLED.addLeds<WS2812B, _kDisplayPin, GRB>(pLEDs, uiLedCount);
+   FastLED.setBrightness(_kBrightness);
+   FastLED.clear(true);
+
+End:
+   return EHIsSuccess;
+}
 
 bool DisplaySurface::setPixelColor(int iX, int iY, const CRGB& color) {
    EHInitialize;
@@ -12,7 +26,7 @@ bool DisplaySurface::setPixelColor(int iX, int iY, const CRGB& color) {
    EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(iX, iY));
 
    // get the pixel from the buffer
-   fSuccess = _LEDBuffer.getLEDAt(uiIndex, pLED);
+   fSuccess = _ledBuffer.getLEDAt(uiIndex, pLED);
    EHRaiseErrorWhenNotSuccess(fSuccess, uiIndex);
 
    // set the color
@@ -20,4 +34,12 @@ bool DisplaySurface::setPixelColor(int iX, int iY, const CRGB& color) {
 
 End:
    return EHIsSuccess;
+}
+
+void DisplaySurface::clear(bool fWriteThrough) {
+   FastLED.clear(fWriteThrough);
+}
+
+void DisplaySurface::show() {
+   FastLED.show();
 }
