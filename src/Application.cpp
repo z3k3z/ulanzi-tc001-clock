@@ -27,6 +27,7 @@ Application::Application() :
     _displaySurface(_coordinateMapper, _ledBuffer),
     _digit0Glyph(_kDigit0Rows, 5, 7),
     _digit1Glyph(_kDigit1Rows, 5, 7),
+    _colorManager(),
     _uiCurrentX(0),
     _uiCurrentY(0),
     _ulLastStepMs(0) {
@@ -82,9 +83,17 @@ bool Application::renderCurrentPixel() {
 
    _displaySurface.clear();
 
-   fSuccess = _digit0Glyph.draw(_displaySurface, 1, 0, CRGB::Red);
+   _colorManager.setTheme(ColorTheme::RedLed);
+   fSuccess = _digit0Glyph.draw(_displaySurface, 1, 0, _colorManager);
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-   fSuccess = _digit1Glyph.draw(_displaySurface, 8, 0, CRGB::Red);
+   _colorManager.setTheme(ColorTheme::TransitYellowGreen);
+   fSuccess = _digit0Glyph.draw(_displaySurface, 8, 0, _colorManager);
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+   _colorManager.setTheme(ColorTheme::AgedPhosphor);
+   fSuccess = _digit0Glyph.draw(_displaySurface, 15, 0, _colorManager);
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+   _colorManager.setTheme(ColorTheme::WarmBusMarquee);
+   fSuccess = _digit0Glyph.draw(_displaySurface, 22, 0, _colorManager);
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
    _displaySurface.show();

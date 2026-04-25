@@ -1,5 +1,6 @@
 #ifndef PIXEL_GLYPH_H
 #define PIXEL_GLYPH_H
+#include "ColorManager.h"
 #include "DisplaySurface.h"
 
 class PixelGlyph {
@@ -16,6 +17,7 @@ class PixelGlyph {
       _uiHeight = uiHeight;
    }
 
-   bool draw(DisplaySurface& displaySurface, int iX, int iY, const CRGB& color) const;
+   bool draw(DisplaySurface& displaySurface, int iX, int iY,
+             const ColorManager& colorManager) const;
 };
 #endif

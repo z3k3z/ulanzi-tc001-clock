@@ -22,6 +22,7 @@ class Application {
    DisplaySurface   _displaySurface;
    PixelGlyph       _digit0Glyph;
    PixelGlyph       _digit1Glyph;
+   ColorManager     _colorManager;
 
    unsigned int  _uiCurrentX;
    unsigned int  _uiCurrentY;
