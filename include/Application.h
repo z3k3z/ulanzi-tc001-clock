@@ -4,6 +4,7 @@
 #include "CoordinateMapper.h"
 #include "DisplaySurface.h"
 #include "LEDBuffer.h"
+#include "PixelGlyph.h"
 #include <Arduino.h>
 
 class Application {
@@ -13,10 +14,14 @@ class Application {
    static constexpr unsigned int  _kMatrixHeight   = 8;
    static constexpr unsigned long _kStepIntervalMs = 50;
    static constexpr unsigned int  _kTrailLength    = 6;
+   static const uint8_t           _kDigit0Rows[7];
+   static const uint8_t           _kDigit1Rows[7];
 
    CoordinateMapper _coordinateMapper;
    LEDBuffer        _ledBuffer;
    DisplaySurface   _displaySurface;
+   PixelGlyph       _digit0Glyph;
+   PixelGlyph       _digit1Glyph;
 
    unsigned int  _uiCurrentX;
    unsigned int  _uiCurrentY;

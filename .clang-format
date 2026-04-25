@@ -15,3 +15,5 @@ PointerAlignment: Left
 SpaceBeforeParens: ControlStatements
 AlignConsecutiveAssignments: true
 AlignConsecutiveDeclarations: true
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+BreakConstructorInitializers: AfterColon
