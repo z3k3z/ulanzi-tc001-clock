@@ -1,438 +1,346 @@
 # project-continuity.md
 
-## Project Identity
-Custom firmware project for the Ulanzi TC001 LED matrix clock using ESP32 hardware, developed in PlatformIO on Windows, targeting full ownership of rendering behavior rather than adapting an existing clock firmware.
+## Project
+Ulanzi TC001 custom clock / visual display system on ESP32 using PlatformIO + Arduino framework.
+
+## Core Intent
+Build a custom clock that treats the 32x8 LED matrix as a deliberately constrained visual medium, emphasizing character, motion, and low-resolution design rather than merely showing time.
+
+The project should evolve with the same discipline used in the Garmin watch-face project:
+- preserve architecture
+- avoid premature abstraction
+- let hardware observations drive design
+- keep rendering ownership explicit
 
 ---
 
-## Core Architectural Intent
-The project is intentionally being built as a clean layered rendering system, similar in discipline to the Garmin watch-face project.
+# Toolchain / Environment
 
-The goal is **full semantic ownership of display behavior**:
-- logical coordinate system independent of physical LED strip layout
-- future digit rendering and animation built above a stable abstraction stack
-- no direct strip-index thinking outside the mapping/surface layer
-- explicit low-level control retained
+## Chosen stack
+- PlatformIO
+- Arduino framework on ESP32
+- FastLED
+- VS Code
 
-The display is treated as a pixel-addressable matrix, not as a prebuilt clock appliance.
+## Why Arduino-on-ESP32 was chosen
+Chosen because it minimizes irrelevant complexity while preserving full control of rendering:
+- immediate WS2812 matrix access
+- GPIO simplicity
+- mature FastLED support
+- fast compile / deploy cycle
+- no imposed framework architecture
 
----
+Avoided:
+- ESP-IDF (premature low-level complexity)
+- AWTRIX / ESPHome (would constrain renderer ownership)
 
-## Why Arduino-on-ESP32 via PlatformIO Was Chosen
-Arduino-on-ESP32 via PlatformIO was chosen intentionally because it minimizes irrelevant complexity while preserving full control.
+## Hardware lesson learned
+CH340 driver may fail to initialize if a Western Digital USB Passport drive is attached.
+Removing the drive and reconnecting the TC001 allows Device Manager to create the COM port.
 
-Reasons:
-- immediate direct access to WS2812 matrix hardware
-- mature FastLED library
-- fast compile / upload cycle
-- direct GPIO control
-- direct serial diagnostics
-- no imposed architecture
-- easy iterative experimentation
+## C++ direction
+Project should prefer newer ANSI C++ constructs when they improve clarity:
+- `static_cast<>`
+- `nullptr`
+- `enum class`
+- modern initialization where useful
 
-Alternatives rejected:
-
-### ESP-IDF
-Rejected because:
-- adds premature low-level RTOS / driver complexity
-- slows early rendering experimentation
-- unnecessary for current abstraction goals
-
-### AWTRIX / ESPHome
-Rejected because:
-- ownership of renderer becomes constrained
-- visual system becomes subordinate to framework assumptions
-
-The project intentionally preserves renderer ownership.
+Do not force novelty where clarity declines.
 
 ---
 
-## Hardware Notes
-Device: Ulanzi TC001
+# Current Architecture
 
-Key display characteristics:
-- 32 x 8 matrix
-- 256 WS2812 LEDs
-- physical strip is serpentine wired
-- row direction alternates by row parity
+## Top-level ownership
+`Application` is the runtime owner.
 
-Meaning:
-- even rows increase left → right
-- odd rows increase right → left
+`main.cpp` should remain a thin shell only.
 
-Speaker present on board:
-- speaker emitted constant tone until buzzer pin configured as input pulldown
+## Current ownership model
 
-Known buzzer suppression:
-- configure buzzer pin 15 as INPUT_PULLDOWN
-
----
-
-## Critical Hardware Lesson Learned
-CH340 driver may fail to initialize if a Western Digital USB Passport drive is attached simultaneously.
-
-Observed behavior:
-- TC001 inserted
-- no COM port appears
-
-Resolution:
-- remove WD USB Passport drive
-- reconnect TC001
-- Device Manager then creates COM port successfully
-
-Treat this as a known Windows environment quirk.
-
----
-
-## Development Environment
-Toolchain:
-- PlatformIO in VS Code
-- Arduino framework
-- ESP32 target
-
-Board used:
-- esp32dev
-
-Build:
-```bash
-pio run
-```
-
-Upload:
-```bash
-pio run -t upload
-```
-
-Serial monitor:
-```bash
-pio device monitor
-```
-
-Current test approach:
-- manual on-device serial harness preferred over PlatformIO Unity tests for now
-
-Reason:
-- embedded Unity runner produced upload-stage failure
-- native host testing requires desktop GCC toolchain not currently installed
-
----
-
-## Coding Standard
-### Naming prefixes communicate declared type
-Examples:
-- `f` = boolean flag
-- `b` = bitfield value
-- `ui` = unsigned int
-- `i` = signed int
-- `l` = long
-- `psz` = pointer to zero-terminated string
-
-Examples:
-- `fInError`
-- `uiMappedIndex`
-- `iX`
-- `pszFile`
-
-### Brace style
-Current formatter preference:
-- attached braces for control statements
-
-### Formatting enforcement
-VS Code formatter active.
-
-Settings include:
-- format on save
-- trim trailing whitespace
-- insert final newline
-
-Formatting sweep was intentionally isolated into its own change set to avoid future diff clutter.
-
----
-
-## Error Handling Architecture
-Project standard is explicit status-return plus output parameters.
-
-Avoid:
-- exceptions
-- sentinel return values
-- magic invalid values
-
-Pattern:
-- function returns bool success/failure
-- outputs returned through reference parameters
-
----
-
-## Error Framework (`errorh.h`)
-Reusable C-compatible macro-based failure framework established.
-
-### Error context structure
-`EHErrorContext`
-
-Fields:
-- `bool fInError`
-- `const char* pszFile`
-- `int iLine`
-- `long lData`
-
-### Internal macro-owned local instance
-`ehEc`
-
-### Core macros
-- `EHInitialize`
-- `EHRaiseError(...)`
-- `EHRaiseErrorWhen(...)`
-- `EHRaiseErrorWhenNotSuccess(...)`
-- `EHErrorRaised`
-- `EHIsSuccess`
-- `EHEmitMsg`
-
-### Flow model
-Functions use:
-- initialize context
-- business logic
-- jump to `End:` on failure
-- epilogue determines return behavior
-
-Canonical shape:
-```cpp
-EHInitialize;
-
-... business logic ...
-
-End:
-    if (EHErrorRaised) {
-        EHEmitMsg;
-        return false;
-    }
-
-    return true;
-```
-
-### Important design rule
-Low-level functions may intentionally suppress emission.
-
-Meaning:
-- low-level layer raises failure
-- caller decides whether logging matters
-
-This is intentional architecture.
-
----
-
-## CoordinateMapper Layer
-First stable semantic layer above raw strip indexing.
-
-### Purpose
-Translate logical `(x,y)` into physical LED index.
-
-### Constructor owns matrix dimensions
-Fields:
-- `_uiWidth`
-- `_uiHeight`
-
-### Public method
-`bool indexFromCoordinates(int iX, int iY, unsigned int& uiIndex)`
-
-### Coordinate assumptions
-- origin `(0,0)` upper-left
-- X increases right
-- Y increases downward
-
-### Behavior
-Bounds validated before unsigned math.
-
-Checks:
-- `iX < 0`
-- `iY < 0`
-- `iX >= width`
-- `iY >= height`
-
-### Serpentine mapping
-Even row:
-- left → right
-
-Odd row:
-- right → left
-
-### Error behavior
-No emission inside mapper.
-Failure intentionally returned upward only.
-
-Reason:
-Mapper is low-level and later clipping may make out-of-range requests normal.
-
----
-
-## On-Device Validation Already Completed
-CoordinateMapper has been proven on hardware.
-
-Demo performed:
-- one pixel advanced every 250 ms
-- logical order left → right, top → bottom
-- wraps back to `(0,0)`
-
-This confirmed:
-- mapper correctness
-- serpentine abstraction correctness
-- logical coordinate ownership over physical strip layout
-
-This is considered a major architectural milestone.
-
----
-
-## DisplaySurface Layer
-DisplaySurface is now implemented, integrated into `main.cpp`, built, deployed, and proven on device.
-
-Responsibilities:
-- accept logical `(x,y)` coordinates
-- call `CoordinateMapper` to obtain a physical LED index
-- call `LEDBuffer` to obtain writable LED storage
-- set pixel color without exposing strip-index concerns to callers
-
-Current public API:
-```cpp
-bool setPixelColor(int iX, int iY, const CRGB& color)
-```
-
-Design rule:
-Future rendering code should not touch raw LED indices directly. It should write through `DisplaySurface` or higher abstractions.
-
-Error behavior:
-`DisplaySurface` participates in the `EH` status/epilogue pattern but intentionally does not emit diagnostics automatically. It returns failure upward and lets the caller decide severity.
-
----
-
-## LEDBuffer Layer
-`LEDBuffer` is implemented as the owner of physical LED storage.
-
-Responsibilities:
-- own the fixed 256-element `CRGB` array
-- expose LED count
-- expose indexed LED access through a status-return method
-- expose raw buffer access only for the FastLED initialization boundary
-
-Current public concepts:
-```cpp
-bool getLEDAt(unsigned int uiIndex, CRGB*& pLED)
-unsigned int getCount() const
-CRGB* getBuffer()
-```
-
-`getBuffer()` is tolerated only as a hardware/library integration escape hatch for `FastLED.addLeds(...)`; it should not become a general rendering API.
-
----
-
-## Current Object Graph
-Current `main.cpp` composition:
-```cpp
-static Application gApplication;
-```
-
-`main.cpp` is now a thin Arduino shell:
-```cpp
-void setup() {
-    gApplication.initialize();
-}
-
-void loop() {
-    gApplication.tick();
-}
-```
-
-Application now owns:
+`Application` owns:
 - `CoordinateMapper`
+- `ColorManager`
 - `LEDBuffer`
 - `DisplaySurface`
-- logical sweep state
-- timing state
+- glyph instances
+- timing/demo state
 
-This confirms the intended ownership structure:
-- `LEDBuffer` owns storage
-- `CoordinateMapper` owns coordinate-to-index mapping
-- `DisplaySurface` references both and performs logical pixel mutation
-- `Application` owns runtime composition and sequencing
+## Dependency direction
 
----
+`CoordinateMapper` -> maps logical coordinates to serpentine LED indices
+`LEDBuffer` -> owns LED storage
+`DisplaySurface` -> owns rendering onto LED buffer and hides FastLED
+`ColorManager` -> semantic theme/color source
+`PixelGlyph` -> static bitmap glyph drawing
+`Application` -> orchestration / experiments / demo behavior
 
-## Application Layer
-`Application` is now the top-level owner of runtime project state.
-
-Responsibilities:
-- device bring-up orchestration
-- buzzer suppression setup
-- time-step scheduling
-- demo sequencing
-- calling render operations
-
-Design rule:
-`main.cpp` should remain framework shell only.
-
----
-
-## FastLED Boundary
-FastLED is now hidden fully behind `DisplaySurface` during runtime.
-
-`DisplaySurface` now owns:
-- FastLED initialization
-- frame clear
-- frame presentation (`show()`)
-
-This means:
-- `Application` no longer directly manipulates FastLED
-- raw LED buffer ownership remains in `LEDBuffer`
-- FastLED is treated purely as transport infrastructure
-
-Important design decision:
-FastLED initialization occurs through a discrete `DisplaySurface::initialize()` method, not in the constructor.
+## FastLED ownership
+FastLED is intentionally hidden under `DisplaySurface`.
 
 Reason:
-embedded object construction should remain lightweight; hardware registration belongs in explicit initialization flow.
+`DisplaySurface` owns LED presentation semantics and already depends on `LEDBuffer`.
 
-Architectural rule going forward:
-Higher layers should not call FastLED directly.
+FastLED should not leak upward unless justified.
 
----
+## Initialization rule
+Hardware initialization should occur explicitly through `DisplaySurface.initialize()` rather than constructor side effects.
 
-## Planned Layer Growth Order
-1. CoordinateMapper ✅
-2. LEDBuffer ✅
-3. DisplaySurface ✅
-4. Canvas / placement abstraction
-5. Digit renderer
-6. Transition / animation engine
-7. Clock semantics
+Reason:
+constructors should establish object validity, not hardware side effects.
 
 ---
 
-## Rendering Direction
-Display strengths should be exploited visually.
+# Error Handling Architecture
 
-Design goal:
-- play to LED matrix character
-- add interest through digit transitions
-- animation sequencing between displayed values
+## Adopted pattern
+Status-return plus output parameters.
 
-Animation concept intentionally deferred until rendering layers stabilize.
+No exceptions.
+No sentinel return values for mixed success/data.
+
+## Standard flow
+Each function:
+- initializes error state with `EHInitialize`
+- uses helper macros to detect failure
+- macro captures:
+  - file
+  - line
+  - context payload
+- macro branches to `End:` label
+- epilogue returns success/failure
+
+## Error context object
+`ErrorHandler`
+
+Current structure includes:
+- boolean error flag (`fInError`)
+- file
+- line
+- context payload
+
+## Macro philosophy
+Uniform error-checking should visually fade into the background through consistency.
+
+## Logging philosophy
+Low-level layers may suppress emission.
+Caller decides severity.
 
 ---
 
-## Testing Philosophy
-Current preference:
-- lightweight manual hardware verification first
-- formal test infrastructure later if it stops obstructing progress
+# Coding Standard
 
-Manual serial harness is acceptable during foundational bring-up.
+## Naming prefixes by declared type
+Examples:
+- `f` = boolean flag
+- `b` = bitfield
+- `ui` = unsigned int
+
+## C compatibility preference where practical
+Noise accepted if utility remains broad.
+
+## Formatting
+clang-format enforced.
+
+Preferences:
+- no break before braces
+- one constructor initializer per line
+- glyph bitmap tables protected when needed with `clang-format off/on`
+
+## Constructor style
+One semantic initializer per line.
 
 ---
 
-## Important Continuity Guardrail
-Preserve current layering discipline.
+# Coordinate System
 
-Do not skip directly into digit rendering while bypassing:
-- DisplaySurface
-- clean ownership boundaries
+## Matrix
+32 x 8 LED matrix
 
-Architectural drift here would recreate physical-strip concerns in higher layers.
+## Physical reality
+Serpentine strip:
+- alternating row direction
+- row parity changes LED index direction
 
-That must be avoided.
+## Abstraction rule
+All upper layers work in Cartesian logical coordinates.
+
+## CoordinateMapper responsibility
+Translate logical `(x,y)` to physical LED index.
+
+Bounds checking returns success/failure under project error architecture.
+
+---
+
+# Rendering Layers
+
+## LEDBuffer
+Owns:
+- CRGB storage
+- size
+
+Provides cohesive ownership rather than exposing raw global array.
+
+## DisplaySurface
+Responsibilities:
+- set logical pixel color
+- clear
+- show
+- FastLED ownership
+
+Future:
+may gain primitive drawing if justified.
+
+## PixelGlyph
+Current responsibility:
+static bitmap glyph rendering only.
+
+Current constructor-owned state:
+- row bitmap pointer
+- width
+- height
+
+No transition logic belongs here yet.
+
+## Current glyph direction
+Pixel digits are expected because display resolution is extremely low.
+
+Glyph size still intentionally undecided because transition style may influence final geometry.
+
+---
+
+# Visual Design Direction
+
+## Current proven effect
+Dormant lattice / inactive pixels significantly improves perceived vintage character.
+
+Equivalent to inactive segments on Garmin watch face.
+
+## Important discovery
+Inactive pixel visibility depends strongly on:
+
+`pixel RGB value × global brightness`
+
+These must be treated as coordinated.
+
+## Current successful baseline
+- global brightness: 50
+- inactive red: 8
+
+This produced useful visible dormant field.
+
+---
+
+# Color Architecture
+
+## ColorManager introduced
+Purpose:
+centralize semantic color requests.
+
+Callers request:
+- active color
+- inactive color
+- cursor color
+- global brightness
+
+No raw CRGB constants should spread outward.
+
+## Theme model
+Current table-driven theme definitions.
+
+Each theme defines:
+- active color
+- inactive color
+- cursor color
+- global brightness
+
+## Current themes
+- RedLed
+- TransitYellowGreen
+- AgedPhosphor
+- WarmBusMarquee
+
+## Reason for table model
+Simple tuning through data edits rather than switch logic.
+
+## Long-term color goal
+ColorManager should eventually coordinate:
+- semantic requested color
+- global brightness
+- ambient brightness input
+
+Meaning:
+"bright red" becomes semantic, not fixed RGB.
+
+## Future likely direction
+Base theme value -> brightness compensation -> emitted CRGB
+
+---
+
+# Future Visual Possibilities (Parked)
+
+## Seasonal background system (parked only)
+Possible date-driven themes:
+- July 4 red/white/blue
+- late December Christmas twinkle
+
+Must remain subordinate to readability.
+
+Possible rejection if visually noisy.
+
+Rule:
+clock first, atmosphere second.
+
+---
+
+# Current On-Device State
+
+## Proven working
+- two pixel glyph digits render correctly
+- dormant field visible
+- theme comparisons render on device
+- ColorManager integrated and deployed
+
+## Current comparison mode
+Four theme variants displayed side-by-side for visual evaluation.
+
+---
+
+# Immediate Next Step
+
+## Transition experiment (not yet implemented)
+Planned first transition:
+
+Descending row wipe, left to right.
+
+## Cursor concept
+A moving cursor sweeps row-major across digit cell.
+
+Behavior:
+- cursor white when landing on target lit pixel
+- dormant field when target pixel off
+- committed pixels remain behind cursor
+
+## First iteration deliberately simple
+No fade yet.
+
+## Timing target
+Vintage transit / bus marquee inspiration.
+
+Likely first timing range:
+15–20 ms per cursor step.
+
+## Architectural note
+Transition logic should not yet be placed in `PixelGlyph`.
+
+Keep first implementation experimental in `Application` until motion vocabulary stabilizes.
+
+---
+
+# Discipline Reminder
+Avoid premature abstraction driven by imagined future needs.
+
+Prefer:
+- visible device experiments
+- hardware-guided decisions
+- explicit code until repetition proves abstraction need.
