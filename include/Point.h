@@ -25,6 +25,7 @@ class Point {
       _iX = iX;
       _iY = iY;
    }
+   Point operator+(const Point& other) const { return Point(_iX + other._iX, _iY + other._iY); }
 };
 
 #endif

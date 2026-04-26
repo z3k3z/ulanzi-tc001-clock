@@ -4,14 +4,16 @@
 bool PixelSweeper::handleTick() {
    EHInitialize;
    unsigned long ulNowMs = millis();
-   Point         point(0, 0);
+   Point         pathPoint(0, 0);
    bool          fSuccess = false;
 
    // do we have something to do?
    if (!_fIsDone && (!_lastActionContext.fHasData ||
                      (ulNowMs - _lastActionContext.ulLastStepMs) >= _uiSweepRateMs)) {
       // access the next point in the sweep
-      if (_ptIt.next(point)) {
+      if (_ptPathIt.next(pathPoint)) {
+         Point point(pathPoint + _ptOrigin); // account for origin offset
+
          // if we have one, restore the previous pixel
          if (_lastActionContext.fHasData) {
             // we intentionally ignore the success of this call.  Failure will be

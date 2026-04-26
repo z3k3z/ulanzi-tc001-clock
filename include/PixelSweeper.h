@@ -2,15 +2,16 @@
 #define PIXEL_SWEEPER_H
 #include "ColorManager.h"
 #include "DisplaySurface.h"
-#include "PointIterator.h"
-#include "Rectangle.h"
+#include "PointPath.h"
+#include "PointPathIterator.h"
 
 class PixelSweeper {
 
  private:
    DisplaySurface&     _displaySurface;
    const ColorManager& _colorManager;
-   PointIterator       _ptIt;
+   const Point&        _ptOrigin;
+   PointPathIterator   _ptPathIt;
    unsigned int        _uiSweepRateMs;
    bool                _fIsDone;
    struct {
@@ -21,11 +22,12 @@ class PixelSweeper {
    } _lastActionContext;
 
  public:
-   PixelSweeper(const Rectangle& rectBounds, unsigned int uiSweepRateMs,
+   PixelSweeper(const Point& ptOrigin, const PointPath& ptPath, unsigned int uiSweepRateMs,
                 DisplaySurface& displaySurface, const ColorManager& colorManager) :
        _displaySurface(displaySurface),
        _colorManager(colorManager),
-       _ptIt(rectBounds, IterationOrder::XMajor),
+       _ptOrigin(ptOrigin),
+       _ptPathIt(ptPath),
        _uiSweepRateMs(uiSweepRateMs),
        _fIsDone(false) {
       _lastActionContext.fHasData     = false;
