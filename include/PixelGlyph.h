@@ -2,6 +2,7 @@
 #define PIXEL_GLYPH_H
 #include "ColorManager.h"
 #include "DisplaySurface.h"
+#include "Point.h"
 
 class PixelGlyph {
 
@@ -18,6 +19,12 @@ class PixelGlyph {
    }
 
    bool draw(DisplaySurface& displaySurface, int iX, int iY,
+             const ColorManager& colorManager) const {
+      Point pt(iX, iY);
+      return draw(displaySurface, pt, colorManager);
+   }
+
+   bool draw(DisplaySurface& displaySurface, const Point& ptOrigin,
              const ColorManager& colorManager) const;
 };
 #endif

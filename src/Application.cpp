@@ -20,17 +20,23 @@ const uint8_t Application::_kDigit1Rows[7] = {
       0b00100,
       0b01110,
 };
+const Application::DigitDescriptor Application::_kDigitDescriptors[4] = {
+    {Point(1, 0), ColorTheme::RedLed},
+    {Point(8, 0), ColorTheme::TransitYellowGreen},
+    {Point(15, 0), ColorTheme::AgedPhosphor},
+    {Point(22, 0), ColorTheme::WarmBusMarquee},
+};
+// clang-format on
 
 Application::Application() :
     _coordinateMapper(_kMatrixWidth, _kMatrixHeight),
     _ledBuffer(),
     _displaySurface(_coordinateMapper, _ledBuffer),
-    _digit0Glyph(_kDigit0Rows, 5, 7),
-    _digit1Glyph(_kDigit1Rows, 5, 7),
+    _digit0Glyph(_kDigit0Rows, _kGlyphWidth, _kGlyphHeight),
+    _digit1Glyph(_kDigit1Rows, _kGlyphWidth, _kGlyphHeight),
     _colorManager(),
-    _uiCurrentX(0),
-    _uiCurrentY(0),
-    _ulLastStepMs(0) {
+    _pixelSweeper(nullptr),
+    _currentDigit(0) {
 }
 
 void Application::initialize() {
@@ -41,80 +47,59 @@ void Application::initialize() {
 
    _displaySurface.initialize();
 
-   _ulLastStepMs = millis();
+   if (!renderThemeZeros()) {
+      Serial.println("Render failure");
+   }
 
-   renderCurrentPixel();
+   _displaySurface.show();
 
    Serial.println("Application initialized");
 }
 
 void Application::tick() {
-   unsigned long ulNowMs = millis();
+   EHInitialize;
+   bool fSuccess = false;
 
-   if ((ulNowMs - _ulLastStepMs) < _kStepIntervalMs) {
-      return;
-   }
+   // if we have an active pixel sweeper, then tick() it
+   if (nullptr != _pixelSweeper) {
+      fSuccess = _pixelSweeper->handleTick();
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
-   _ulLastStepMs = ulNowMs;
-
-   advanceLogicalCoordinate();
-
-   if (!renderCurrentPixel()) {
-      Serial.println("Render failure");
-   }
-}
-
-void Application::advanceLogicalCoordinate() {
-   ++_uiCurrentX;
-
-   if (_uiCurrentX >= _kMatrixWidth) {
-      _uiCurrentX = 0;
-      ++_uiCurrentY;
-
-      if (_uiCurrentY >= _kMatrixHeight) {
-         _uiCurrentY = 0;
+      // if the sweeper is done, dispose of it
+      if (_pixelSweeper->getIsDone()) {
+         delete (_pixelSweeper);
+         _pixelSweeper = nullptr;
+         // stage the index  of the next one
+         _currentDigit = ++_currentDigit % 4;
       }
+   } else {
+      // we don't have an active pixel sweeper.  Let's create one.
+      const DigitDescriptor& desc = _kDigitDescriptors[_currentDigit];
+      Rectangle rect(desc.pointOrigin.getX(), desc.pointOrigin.getY(), _kGlyphWidth, _kGlyphHeight);
+      _colorManager.setTheme(_kDigitDescriptors->colorTheme);
+      _pixelSweeper = new PixelSweeper(rect, 20, _displaySurface, _colorManager);
+   }
+   _displaySurface.show();
+
+End:
+   if (EHErrorRaised) {
+      EHEmitMsg;
    }
 }
 
-bool Application::renderCurrentPixel() {
+bool Application::renderThemeZeros() {
    EHInitialize;
    bool fSuccess = false;
 
    _displaySurface.clear();
 
-   _colorManager.setTheme(ColorTheme::RedLed);
-   fSuccess = _digit0Glyph.draw(_displaySurface, 1, 0, _colorManager);
-   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-   _colorManager.setTheme(ColorTheme::TransitYellowGreen);
-   fSuccess = _digit0Glyph.draw(_displaySurface, 8, 0, _colorManager);
-   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-   _colorManager.setTheme(ColorTheme::AgedPhosphor);
-   fSuccess = _digit0Glyph.draw(_displaySurface, 15, 0, _colorManager);
-   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-   _colorManager.setTheme(ColorTheme::WarmBusMarquee);
-   fSuccess = _digit0Glyph.draw(_displaySurface, 22, 0, _colorManager);
-   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+   for (const DigitDescriptor& digitDescriptor : _kDigitDescriptors) {
+      _colorManager.setTheme(digitDescriptor.colorTheme);
 
-   _displaySurface.show();
-
-   // for (unsigned int uiTrailOffset = 0; uiTrailOffset < _kTrailLength; ++uiTrailOffset) {
-   //    unsigned int uiLinearPosition = (_uiCurrentY * _kMatrixWidth) + _uiCurrentX;
-   //
-   //   unsigned int uiTrailPosition =
-   //       (uiLinearPosition + (_kMatrixWidth * _kMatrixHeight) - uiTrailOffset) %
-   //       (_kMatrixWidth * _kMatrixHeight);
-   //
-   //   unsigned int uiTrailX = uiTrailPosition % _kMatrixWidth;
-   //   unsigned int uiTrailY = uiTrailPosition / _kMatrixWidth;
-   //
-   //   uint8_t uiBrightness = (uint8_t)(255 / (uiTrailOffset + 1));
-   //
-   //   CRGB color = CRGB(uiBrightness, 0, 0);
-   //
-   //   fSuccess = _displaySurface.setPixelColor((int)uiTrailX, (int)uiTrailY, color);
-   //   EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(uiTrailX, uiTrailY));
-   //}
+      fSuccess = _digit0Glyph.draw(_displaySurface, digitDescriptor.pointOrigin.getX(),
+                                   digitDescriptor.pointOrigin.getY(), _colorManager);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+   }
 
 End:
    return EHIsSuccess;

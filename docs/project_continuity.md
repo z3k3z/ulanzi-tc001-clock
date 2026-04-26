@@ -1,346 +1,247 @@
 # project-continuity.md
 
 ## Project
-Ulanzi TC001 custom clock / visual display system on ESP32 using PlatformIO + Arduino framework.
+Custom firmware / clock application for Ulanzi TC001 (ESP32 + 32x8 WS2812 matrix)
 
-## Core Intent
-Build a custom clock that treats the 32x8 LED matrix as a deliberately constrained visual medium, emphasizing character, motion, and low-resolution design rather than merely showing time.
+## Strategic Intent
+This project is intentionally being developed in a craft-oriented way similar to the Garmin Venu 3 watch-face project:
+- stepwise architecture growth
+- explicit ownership boundaries
+- visible device-first validation
+- avoidance of premature abstraction
+- strong continuity discipline to prevent architectural drift after chat loss
 
-The project should evolve with the same discipline used in the Garmin watch-face project:
-- preserve architecture
-- avoid premature abstraction
-- let hardware observations drive design
-- keep rendering ownership explicit
+## Platform Choice
+Arduino-on-ESP32 via PlatformIO was deliberately chosen because it minimizes irrelevant complexity while preserving full control of rendering:
+- direct WS2812 matrix access
+- mature FastLED library
+- immediate GPIO / serial control
+- fast iteration cycle
+- no imposed application architecture
 
----
+ESP-IDF was intentionally avoided at this stage because it adds low-level complexity too early.
+AWTRIX / ESPHome were avoided because they constrain renderer ownership.
 
-# Toolchain / Environment
+## Toolchain / Environment
+- PlatformIO in VS Code
+- Board target: `esp32dev`
+- Formatter: clang-format
+- Brace style: no break before braces
+- Trailing whitespace cleanup enabled
+- C/C++ formatter active on save
 
-## Chosen stack
-- PlatformIO
-- Arduino framework on ESP32
-- FastLED
-- VS Code
+## Known Hardware Lesson
+CH340 driver may fail to initialize if a Western Digital USB Passport drive is attached simultaneously.
+Resolution:
+- remove WD drive
+- reconnect TC001
+- COM port appears correctly in Device Manager
 
-## Why Arduino-on-ESP32 was chosen
-Chosen because it minimizes irrelevant complexity while preserving full control of rendering:
-- immediate WS2812 matrix access
-- GPIO simplicity
-- mature FastLED support
-- fast compile / deploy cycle
-- no imposed framework architecture
+## Coding Standards
+- explicit type prefixes:
+  - `f` boolean flags
+  - `b` bitfield values
+  - `ui` unsigned integers
+- modern ANSI C++ preferred when clarity improves
+- range-based `for` preferred for collections when index is not semantically required
+- retain C compatibility where practical in low-level utilities
+- no unbound globals when ownership can be expressed cleanly
 
-Avoided:
-- ESP-IDF (premature low-level complexity)
-- AWTRIX / ESPHome (would constrain renderer ownership)
+## Error Handling Architecture
+Adopted project-wide:
+- status-return + output parameters
+- no exceptions
+- no sentinel return values
 
-## Hardware lesson learned
-CH340 driver may fail to initialize if a Western Digital USB Passport drive is attached.
-Removing the drive and reconnecting the TC001 allows Device Manager to create the COM port.
+`errorh.h` provides:
+- `EHInitialize`
+- `EHRaiseError...`
+- `EHEmitMsg`
+- epilogue via `End:` label
 
-## C++ direction
-Project should prefer newer ANSI C++ constructs when they improve clarity:
-- `static_cast<>`
-- `nullptr`
-- `enum class`
-- modern initialization where useful
+Pattern:
+- collect file / line / packed context
+- branch to epilogue
+- caller decides severity
 
-Do not force novelty where clarity declines.
+This is intentionally lightweight and uniform to reduce visual cyclomatic complexity.
 
----
+## Current Core Architecture
 
-# Current Architecture
+### Application
+Owns top-level composition:
+- CoordinateMapper
+- LEDBuffer
+- DisplaySurface
+- PixelGlyph digit assets
+- ColorManager
+- active PixelSweeper lifecycle
 
-## Top-level ownership
-`Application` is the runtime owner.
-
-`main.cpp` should remain a thin shell only.
-
-## Current ownership model
-
-`Application` owns:
-- `CoordinateMapper`
-- `ColorManager`
-- `LEDBuffer`
-- `DisplaySurface`
-- glyph instances
-- timing/demo state
-
-## Dependency direction
-
-`CoordinateMapper` -> maps logical coordinates to serpentine LED indices
-`LEDBuffer` -> owns LED storage
-`DisplaySurface` -> owns rendering onto LED buffer and hides FastLED
-`ColorManager` -> semantic theme/color source
-`PixelGlyph` -> static bitmap glyph drawing
-`Application` -> orchestration / experiments / demo behavior
-
-## FastLED ownership
-FastLED is intentionally hidden under `DisplaySurface`.
-
-Reason:
-`DisplaySurface` owns LED presentation semantics and already depends on `LEDBuffer`.
-
-FastLED should not leak upward unless justified.
-
-## Initialization rule
-Hardware initialization should occur explicitly through `DisplaySurface.initialize()` rather than constructor side effects.
-
-Reason:
-constructors should establish object validity, not hardware side effects.
-
----
-
-# Error Handling Architecture
-
-## Adopted pattern
-Status-return plus output parameters.
-
-No exceptions.
-No sentinel return values for mixed success/data.
-
-## Standard flow
-Each function:
-- initializes error state with `EHInitialize`
-- uses helper macros to detect failure
-- macro captures:
-  - file
-  - line
-  - context payload
-- macro branches to `End:` label
-- epilogue returns success/failure
-
-## Error context object
-`ErrorHandler`
-
-Current structure includes:
-- boolean error flag (`fInError`)
-- file
-- line
-- context payload
-
-## Macro philosophy
-Uniform error-checking should visually fade into the background through consistency.
-
-## Logging philosophy
-Low-level layers may suppress emission.
-Caller decides severity.
-
----
-
-# Coding Standard
-
-## Naming prefixes by declared type
-Examples:
-- `f` = boolean flag
-- `b` = bitfield
-- `ui` = unsigned int
-
-## C compatibility preference where practical
-Noise accepted if utility remains broad.
-
-## Formatting
-clang-format enforced.
-
-Preferences:
-- no break before braces
-- one constructor initializer per line
-- glyph bitmap tables protected when needed with `clang-format off/on`
-
-## Constructor style
-One semantic initializer per line.
-
----
-
-# Coordinate System
-
-## Matrix
-32 x 8 LED matrix
-
-## Physical reality
-Serpentine strip:
-- alternating row direction
-- row parity changes LED index direction
-
-## Abstraction rule
-All upper layers work in Cartesian logical coordinates.
-
-## CoordinateMapper responsibility
-Translate logical `(x,y)` to physical LED index.
-
-Bounds checking returns success/failure under project error architecture.
-
----
-
-# Rendering Layers
-
-## LEDBuffer
-Owns:
-- CRGB storage
-- size
-
-Provides cohesive ownership rather than exposing raw global array.
-
-## DisplaySurface
 Responsibilities:
-- set logical pixel color
-- clear
-- show
-- FastLED ownership
+- initialize hardware
+- render four themed zero glyphs
+- stage sequential sweep experiments
 
-Future:
-may gain primitive drawing if justified.
+### CoordinateMapper
+Maps Cartesian `(x,y)` into serpentine WS2812 index:
+- 32x8 matrix
+- alternating row direction
+- bounds checking via status return
+
+### LEDBuffer
+Encapsulates LED storage:
+- owns CRGB array
+- exposes buffer + count
+
+FastLED initialization consumes LEDBuffer storage.
+
+### DisplaySurface
+Owns rendering boundary above FastLED.
+Responsibilities:
+- initialize FastLED
+- set pixel color
+- get pixel color
+- clear buffer
+- show buffer
+
+Important rule:
+- `show()` remains separate from mutation
+- lower layers do not flush automatically
+
+This preserves future composability.
+
+### Point / Rectangle / PointIterator
+Minimal geometry layer introduced.
+
+#### Point
+- x/y coordinate holder
+
+#### Rectangle
+- origin + extent
+- containment semantics
+
+#### PointIterator
+Traverses rectangle:
+- XMajor
+- YMajor
+
+Used by:
+- PixelGlyph
+- PixelSweeper
 
 ## PixelGlyph
-Current responsibility:
-static bitmap glyph rendering only.
+Current digit renderer:
+- bit-row encoded glyphs
+- inactive pixel field visible
+- active/inactive colors via ColorManager
+- traversal via PointIterator
 
-Current constructor-owned state:
-- row bitmap pointer
-- width
-- height
+Current glyphs:
+- digit 0
+- digit 1
 
-No transition logic belongs here yet.
+Glyph draw now accepts Point origin overload.
 
-## Current glyph direction
-Pixel digits are expected because display resolution is extremely low.
+## ColorManager
+Theme-driven semantic color provider.
 
-Glyph size still intentionally undecided because transition style may influence final geometry.
-
----
-
-# Visual Design Direction
-
-## Current proven effect
-Dormant lattice / inactive pixels significantly improves perceived vintage character.
-
-Equivalent to inactive segments on Garmin watch face.
-
-## Important discovery
-Inactive pixel visibility depends strongly on:
-
-`pixel RGB value × global brightness`
-
-These must be treated as coordinated.
-
-## Current successful baseline
-- global brightness: 50
-- inactive red: 8
-
-This produced useful visible dormant field.
-
----
-
-# Color Architecture
-
-## ColorManager introduced
-Purpose:
-centralize semantic color requests.
-
-Callers request:
-- active color
-- inactive color
-- cursor color
-- global brightness
-
-No raw CRGB constants should spread outward.
-
-## Theme model
-Current table-driven theme definitions.
-
-Each theme defines:
-- active color
-- inactive color
-- cursor color
-- global brightness
-
-## Current themes
+Current themes stored tabularly:
 - RedLed
 - TransitYellowGreen
 - AgedPhosphor
 - WarmBusMarquee
 
-## Reason for table model
-Simple tuning through data edits rather than switch logic.
+Provides:
+- active color
+- inactive color
+- transition cursor color
 
-## Long-term color goal
+Long-term goal:
+semantic color + brightness coordination.
+
+## Brightness / Theme Direction
+Current observed tuning:
+- global brightness = 50
+- inactive field brightness around 8 gives useful vintage lattice visibility
+
+Long-term architectural goal:
 ColorManager should eventually coordinate:
-- semantic requested color
+- active color
+- inactive color
 - global brightness
-- ambient brightness input
+- ambient brightness adaptation
 
-Meaning:
-"bright red" becomes semantic, not fixed RGB.
+## PixelSweeper
+First animation primitive now working on device.
 
-## Future likely direction
-Base theme value -> brightness compensation -> emitted CRGB
+Responsibilities:
+- rectangle traversal using PointIterator
+- timed cursor movement via millis()
+- restore previous pixel color
+- draw transition cursor
+- completion state
 
----
+Current behavior:
+- one bright cursor sweeps rectangle
+- previous pixel restored after advance
+- caller flushes via DisplaySurface.show()
 
-# Future Visual Possibilities (Parked)
+Important architectural rule:
+PixelSweeper mutates only.
+Application decides frame flush.
 
-## Seasonal background system (parked only)
-Possible date-driven themes:
-- July 4 red/white/blue
-- late December Christmas twinkle
+## Current Application Runtime Behavior
+- four themed zero glyphs rendered at startup
+- DigitDescriptor array defines:
+  - Point origin
+  - ColorTheme
+- active PixelSweeper allocated per digit
+- sweeps digits sequentially
+- sweeper destroyed on completion
+- next digit staged cyclically
 
-Must remain subordinate to readability.
+## DigitDescriptor
+Current data-driven rendering descriptor:
+- Point origin
+- ColorTheme
 
-Possible rejection if visually noisy.
+Used to render four zeroes cleanly without hardcoded repeated draw logic.
 
-Rule:
-clock first, atmosphere second.
+## Heap Usage Note
+PixelSweeper currently uses heap allocation (`new/delete`) inside Application runtime.
+This is acceptable for current experimentation but should be monitored.
+Potential future refinement:
+- reusable member-owned sweeper instance
+- resettable actor lifecycle
 
----
+## Future Architecture Candidates
 
-# Current On-Device State
+### Tick Listener System
+Likely needed later.
+Purpose:
+- independently registered animation actors
+- staggered digit transitions
+- per-pixel fades
 
-## Proven working
-- two pixel glyph digits render correctly
-- dormant field visible
-- theme comparisons render on device
-- ColorManager integrated and deployed
+### Sound
+Possible future ambient sweep sound.
+Device speaker confirmed usable.
+Likely only event-based:
+- minute rollover
+- visible transition events
+- avoid continuous fatigue
 
-## Current comparison mode
-Four theme variants displayed side-by-side for visual evaluation.
+### Seasonal Background Themes
+Future experimental option:
+- July 4th styling
+- Christmas twinkle colors
+Potentially removable if visually noisy.
 
----
+## Immediate Next Focus
+Cursor sweep experimentation:
+- refine transit-style motion feel
+- likely descending row wipe / cursor variants
+- explore timing character
+- preserve vintage transit display inspiration
 
-# Immediate Next Step
-
-## Transition experiment (not yet implemented)
-Planned first transition:
-
-Descending row wipe, left to right.
-
-## Cursor concept
-A moving cursor sweeps row-major across digit cell.
-
-Behavior:
-- cursor white when landing on target lit pixel
-- dormant field when target pixel off
-- committed pixels remain behind cursor
-
-## First iteration deliberately simple
-No fade yet.
-
-## Timing target
-Vintage transit / bus marquee inspiration.
-
-Likely first timing range:
-15–20 ms per cursor step.
-
-## Architectural note
-Transition logic should not yet be placed in `PixelGlyph`.
-
-Keep first implementation experimental in `Application` until motion vocabulary stabilizes.
-
----
-
-# Discipline Reminder
-Avoid premature abstraction driven by imagined future needs.
-
-Prefer:
-- visible device experiments
-- hardware-guided decisions
-- explicit code until repetition proves abstraction need.
+Transition architecture remains intentionally experimental.

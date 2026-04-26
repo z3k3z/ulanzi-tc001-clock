@@ -18,6 +18,7 @@ class DisplaySurface {
 
    bool initialize();
    bool setPixelColor(int iX, int iY, const CRGB& color);
+   bool getPixelColor(int iX, int iY, CRGB& color);
    void clear(bool fWriteThrough = false);
    void show();
 };
