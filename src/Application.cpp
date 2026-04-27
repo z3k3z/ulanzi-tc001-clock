@@ -53,6 +53,7 @@ Application::Application() :
     _digit0Glyph(_kDigit0Rows, _kGlyphWidth, _kGlyphHeight),
     _digit1Glyph(_kDigit1Rows, _kGlyphWidth, _kGlyphHeight),
     _colorManager(),
+    _simpleSweep(_displaySurface, _colorManager),
     _pixelSweeper(nullptr),
     _currentDigit(0) {
 }
@@ -94,8 +95,8 @@ void Application::tick() {
       // we don't have an active pixel sweeper.  Let's create one.
       const DigitDescriptor& desc = _kDigitDescriptors[_currentDigit];
       _colorManager.setTheme(_kDigitDescriptors->colorTheme);
-      _pixelSweeper = new PixelSweeper(desc.pointOrigin, kPointPath5x7Serpentine, 20,
-                                       _displaySurface, _colorManager);
+      _simpleSweep.initialize(desc.pointOrigin);
+      _pixelSweeper = new PixelSweeper(kPointPath5x7Serpentine, 20, _simpleSweep);
    }
    _displaySurface.show();
 

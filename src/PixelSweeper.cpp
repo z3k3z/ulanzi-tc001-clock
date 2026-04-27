@@ -1,53 +1,41 @@
 #include "PixelSweeper.h"
 #include "errorh.h"
+#include <Arduino.h>
 
 bool PixelSweeper::handleTick() {
    EHInitialize;
    unsigned long ulNowMs = millis();
-   Point         pathPoint(0, 0);
+   Point         point(0, 0);
    bool          fSuccess = false;
 
    // do we have something to do?
-   if (!_fIsDone && (!_lastActionContext.fHasData ||
-                     (ulNowMs - _lastActionContext.ulLastStepMs) >= _uiSweepRateMs)) {
-      // access the next point in the sweep
-      if (_ptPathIt.next(pathPoint)) {
-         Point point(pathPoint + _ptOrigin); // account for origin offset
+   if (!_fIsDone) {
+      if (!_lastActionContext.fHasData ||
+          ((ulNowMs - _lastActionContext.ulLastStepMs) >= _uiSweepRateMs)) {
 
-         // if we have one, restore the previous pixel
+         // are we about to leave a point that we landed on?
          if (_lastActionContext.fHasData) {
-            // we intentionally ignore the success of this call.  Failure will be
-            // obvious on the display.
-            _displaySurface.setPixelColor(_lastActionContext.point.getX(),
-                                          _lastActionContext.point.getY(),
-                                          _lastActionContext.crgbColor);
+            // signal we are about to leave the last point visited
+            fSuccess = _sweepListener.leavingFromPoint(_lastActionContext.point);
+            EHRaiseErrorWhenNotSuccess(fSuccess,
+                                       EH_PACK_INT16_TO_LONG(_lastActionContext.point.getX(),
+                                                             _lastActionContext.point.getY()));
          }
 
-         // cache the state of the next pixel
-         {
-            fSuccess = _displaySurface.getPixelColor(point.getX(), point.getY(),
-                                                     _lastActionContext.crgbColor);
+         // next point in the path
+         if (_ptPathIt.next(point)) {
+            fSuccess = _sweepListener.landingOnPoint(point);
             EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(point.getX(), point.getY()));
             _lastActionContext.point        = point;
             _lastActionContext.ulLastStepMs = ulNowMs;
             _lastActionContext.fHasData     = true;
-         }
-
-         // render the cursor
-         fSuccess = _displaySurface.setPixelColor(point.getX(), point.getY(),
-                                                  _colorManager.getTransitionCursorColor());
-         EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(point.getX(), point.getY()));
-      } else {
-         // we are at the end.
-         if (_lastActionContext.fHasData) {
-            _displaySurface.setPixelColor(_lastActionContext.point.getX(),
-                                          _lastActionContext.point.getY(),
-                                          _lastActionContext.crgbColor);
+         } else {
             _lastActionContext.fHasData = false;
+            _fIsDone                    = true;
          }
-         _fIsDone = true;
       }
    }
+
 End:
    return EHIsSuccess;
 }

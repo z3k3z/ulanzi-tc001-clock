@@ -6,6 +6,7 @@
 #include "LEDBuffer.h"
 #include "PixelGlyph.h"
 #include "PixelSweeper.h"
+#include "SimpleSweep.h"
 #include <Arduino.h>
 
 class Application {
@@ -31,6 +32,7 @@ class Application {
    PixelGlyph       _digit0Glyph;
    PixelGlyph       _digit1Glyph;
    ColorManager     _colorManager;
+   SimpleSweep      _simpleSweep;
    PixelSweeper*    _pixelSweeper;
    unsigned int     _currentDigit;
 
