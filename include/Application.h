@@ -2,6 +2,7 @@
 #define APPLICATION_H
 
 #include "CoordinateMapper.h"
+#include "DigitTransitionSweep.h"
 #include "DisplaySurface.h"
 #include "LEDBuffer.h"
 #include "PixelGlyph.h"
@@ -26,15 +27,16 @@ class Application {
    static const uint8_t          _kDigit1Rows[7];
    static const DigitDescriptor  _kDigitDescriptors[4];
 
-   CoordinateMapper _coordinateMapper;
-   LEDBuffer        _ledBuffer;
-   DisplaySurface   _displaySurface;
-   PixelGlyph       _digit0Glyph;
-   PixelGlyph       _digit1Glyph;
-   ColorManager     _colorManager;
-   SimpleSweep      _simpleSweep;
-   PixelSweeper*    _pixelSweeper;
-   unsigned int     _currentDigit;
+   CoordinateMapper     _coordinateMapper;
+   LEDBuffer            _ledBuffer;
+   DisplaySurface       _displaySurface;
+   PixelGlyph           _digit0Glyph;
+   PixelGlyph           _digit1Glyph;
+   ColorManager         _colorManager;
+   SimpleSweep          _simpleSweep;
+   PixelSweeper*        _pixelSweeper;
+   DigitTransitionSweep _digitTransitionSweep;
+   unsigned int         _currentDigit;
 
  public:
    Application();

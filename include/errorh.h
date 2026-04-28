@@ -1,6 +1,7 @@
 #ifndef ERRORH_H
 #define ERRORH_H
 
+#include <Arduino.h>
 #include <string.h>
 
 // small structure that holds error state context
@@ -9,6 +10,7 @@ typedef struct _EHErrorContext {
    const char* pszFile;
    int         iLine;
    long        lData;
+   const char* pszAddlText;
 } EHErrorContext;
 
 // initialize an instance of the error context
@@ -45,15 +47,58 @@ typedef struct _EHErrorContext {
 // evaluates to true if no error has been detected
 #define EHIsSuccess !(EHErrorRaised)
 
-// emit a formatted error trace to Serial
+// attach an additional context string to be emitted.
+#define EHSetAdditionalContext(pszContextToLog)                                                    \
+   do {                                                                                            \
+      ehEc.pszAddlText = (pszContextToLog);                                                        \
+   } while (0);
+
+// unconditional emit a formatted error trace to Serial
 #define EHEmitMsg                                                                                  \
    do {                                                                                            \
       Serial.print("ERROR--> ");                                                                   \
       Serial.print(ehEc.pszFile);                                                                  \
       Serial.print(":");                                                                           \
       Serial.print(ehEc.iLine);                                                                    \
-      Serial.print(" 0x");                                                                         \
-      Serial.print(ehEc.lData, HEX);                                                               \
+      {                                                                                            \
+         uint16_t uiHighWord = (uint16_t)((ehEc.lData >> 16) & 0xFFFF);                            \
+         uint16_t uiLowWord  = (uint16_t)(ehEc.lData & 0xFFFF);                                    \
+                                                                                                   \
+         Serial.print(" Data: 0x ");                                                               \
+         if (uiHighWord < 0x1000)                                                                  \
+            Serial.print("0");                                                                     \
+         if (uiHighWord < 0x0100)                                                                  \
+            Serial.print("0");                                                                     \
+         if (uiHighWord < 0x0010)                                                                  \
+            Serial.print("0");                                                                     \
+         Serial.print(uiHighWord, HEX);                                                            \
+                                                                                                   \
+         Serial.print(" ");                                                                        \
+                                                                                                   \
+         if (uiLowWord < 0x1000)                                                                   \
+            Serial.print("0");                                                                     \
+         if (uiLowWord < 0x0100)                                                                   \
+            Serial.print("0");                                                                     \
+         if (uiLowWord < 0x0010)                                                                   \
+            Serial.print("0");                                                                     \
+         Serial.print(uiLowWord, HEX);                                                             \
+      }                                                                                            \
+      if (nullptr != ehEc.pszAddlText) {                                                           \
+         Serial.print("\t");                                                                       \
+         Serial.print(ehEc.pszAddlText);                                                           \
+      }                                                                                            \
+      Serial.print("\n");                                                                          \
+   } while (0);
+
+// this needs to live somewhere in main.  Set to true to emit debug errors
+extern bool g_fEHDebugEnabled;
+
+// emit a formatted error trace to Serial when debug is enabled
+#define EHEmitMsgDebug                                                                             \
+   do {                                                                                            \
+      if (g_fEHDebugEnabled) {                                                                     \
+         EHEmitMsg;                                                                                \
+      }                                                                                            \
    } while (0);
 
 #define EH_PACK_INT16_TO_LONG(iHigh, iLow)                                                         \

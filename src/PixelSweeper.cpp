@@ -37,5 +37,8 @@ bool PixelSweeper::handleTick() {
    }
 
 End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
    return EHIsSuccess;
 }

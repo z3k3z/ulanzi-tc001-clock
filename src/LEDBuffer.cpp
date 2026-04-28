@@ -11,5 +11,8 @@ bool LEDBuffer::getLEDAt(unsigned int uiIndex, CRGB*& pLED) {
    pLED = &_rgbLEDs[uiIndex];
 
 End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
    return EHIsSuccess;
 }

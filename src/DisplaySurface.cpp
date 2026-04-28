@@ -12,6 +12,9 @@ bool DisplaySurface::initialize() {
    FastLED.clear(true);
 
 End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
    return EHIsSuccess;
 }
 
@@ -33,6 +36,9 @@ bool DisplaySurface::setPixelColor(int iX, int iY, const CRGB& color) {
    *pLED = color;
 
 End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
    return EHIsSuccess;
 }
 
@@ -54,6 +60,9 @@ bool DisplaySurface::getPixelColor(int iX, int iY, CRGB& color) {
    color = *pLED;
 
 End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
    return EHIsSuccess;
 }
 

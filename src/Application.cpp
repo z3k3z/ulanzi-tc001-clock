@@ -1,6 +1,8 @@
 #include "Application.h"
 #include "errorh.h"
 
+bool g_fEHDebugEnabled = true;
+
 // clang-format off
 const uint8_t Application::_kDigit0Rows[7] = {
       0b01110,
@@ -44,6 +46,21 @@ static const PointPath kPointPath5x7Serpentine(
    kPointPath5x7SerpentinePoints,
    sizeof(kPointPath5x7SerpentinePoints) / sizeof(kPointPath5x7SerpentinePoints[0])
 );
+
+static const Point kPointPath5x7RandomPoints[] = {
+   Point(2, 3), Point(4, 0), Point(1, 6), Point(0, 2), Point(3, 5),
+   Point(1, 1), Point(4, 4), Point(2, 0), Point(0, 6), Point(3, 2),
+   Point(4, 1), Point(2, 5), Point(1, 3), Point(0, 0), Point(3, 6),
+   Point(4, 2), Point(2, 1), Point(1, 5), Point(0, 4), Point(3, 0),
+   Point(4, 6), Point(2, 4), Point(1, 0), Point(0, 5), Point(3, 3),
+   Point(4, 3), Point(2, 2), Point(1, 4), Point(0, 1), Point(3, 1),
+   Point(4, 5), Point(2, 6), Point(1, 2), Point(0, 3), Point(3, 4),
+};
+
+static const PointPath kPointPath5x7Random(
+   kPointPath5x7RandomPoints,
+   sizeof(kPointPath5x7RandomPoints) / sizeof(kPointPath5x7RandomPoints[0])
+);
 // clang-format on
 
 Application::Application() :
@@ -55,6 +72,7 @@ Application::Application() :
     _colorManager(),
     _simpleSweep(_displaySurface, _colorManager),
     _pixelSweeper(nullptr),
+    _digitTransitionSweep(_displaySurface, _colorManager, _digit1Glyph),
     _currentDigit(0) {
 }
 
@@ -89,14 +107,15 @@ void Application::tick() {
          delete (_pixelSweeper);
          _pixelSweeper = nullptr;
          // stage the index  of the next one
-         _currentDigit = ++_currentDigit % 4;
+         _currentDigit = ++_currentDigit % 8;
       }
    } else {
       // we don't have an active pixel sweeper.  Let's create one.
-      const DigitDescriptor& desc = _kDigitDescriptors[_currentDigit];
+      const DigitDescriptor& desc = _kDigitDescriptors[_currentDigit % 4];
       _colorManager.setTheme(_kDigitDescriptors->colorTheme);
-      _simpleSweep.initialize(desc.pointOrigin);
-      _pixelSweeper = new PixelSweeper(kPointPath5x7Serpentine, 20, _simpleSweep);
+      _digitTransitionSweep.initialize(((_currentDigit / 4) == 0) ? _digit1Glyph : _digit0Glyph,
+                                       desc.pointOrigin, _colorManager);
+      _pixelSweeper = new PixelSweeper(kPointPath5x7Random, 10, _digitTransitionSweep);
    }
    _displaySurface.show();
 
@@ -121,5 +140,8 @@ bool Application::renderThemeZeros() {
    }
 
 End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
    return EHIsSuccess;
 }

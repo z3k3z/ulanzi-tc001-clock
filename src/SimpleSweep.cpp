@@ -16,6 +16,9 @@ bool SimpleSweep::leavingFromPoint(const Point& point) {
    }
 
 End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
    return EHIsSuccess;
 }
 
@@ -38,5 +41,8 @@ bool SimpleSweep::landingOnPoint(const Point& point) {
                               EH_PACK_INT16_TO_LONG(ptWithOffset.getX(), ptWithOffset.getY()));
 
 End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
    return EHIsSuccess;
 }

@@ -20,10 +20,11 @@ bool CoordinateMapper::indexFromCoordinates(int iX, int iY, unsigned int& uiInde
    } else {
       uiMappedIndex = (unsigned int)iY * _uiWidth + (unsigned int)iX;
    }
+   uiIndex = uiMappedIndex;
 
 End:
-   if (EHIsSuccess) {
-      uiIndex = uiMappedIndex;
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
    }
    return EHIsSuccess;
 }
