@@ -2,29 +2,11 @@
 #include "errorh.h"
 
 // clang-format off
-const uint8_t Application::_kDigit0Rows[7] = {
-      0b01110,
-      0b10001,
-      0b10011,
-      0b10101,
-      0b11001,
-      0b10001,
-      0b01110,
-};
-const uint8_t Application::_kDigit1Rows[7] = {
-      0b00100,
-      0b01100,
-      0b00100,
-      0b00100,
-      0b00100,
-      0b00100,
-      0b01110,
-};
 const Application::DigitDescriptor Application::_kDigitDescriptors[4] = {
-    {Point(1, 0), ColorTheme::RedLed},
-    {Point(8, 0), ColorTheme::TransitYellowGreen},
-    {Point(15, 0), ColorTheme::AgedPhosphor},
-    {Point(22, 0), ColorTheme::WarmBusMarquee},
+   {Point(1, 0), ColorTheme::RedLed},
+   {Point(8, 0), ColorTheme::TransitYellowGreen},
+   {Point(15, 0), ColorTheme::AgedPhosphor},
+   {Point(22, 0), ColorTheme::WarmBusMarquee},
 };
 
 // 5x7 serpentine / alternating row-major path.
@@ -61,16 +43,15 @@ static const PointPath kPointPath5x7Random(
 );
 // clang-format on
 
-Application::Application() :
+Application::Application(const IDigitProvider& iDigitProvider) :
     _coordinateMapper(_kMatrixWidth, _kMatrixHeight),
     _ledBuffer(),
     _displaySurface(_coordinateMapper, _ledBuffer),
-    _digit0Glyph(_kDigit0Rows, _kGlyphWidth, _kGlyphHeight),
-    _digit1Glyph(_kDigit1Rows, _kGlyphWidth, _kGlyphHeight),
     _colorManager(),
-    _simpleSweep(_displaySurface, _colorManager),
     _pixelSweeper(nullptr),
-    _digitTransitionSweep(_displaySurface, _colorManager, _digit1Glyph),
+    _pixelGlyphNull(nullptr, 0, 0),
+    _digitTransitionSweep(_displaySurface, _colorManager, _pixelGlyphNull),
+    _iDigitProvider(iDigitProvider),
     _currentDigit(0) {
 }
 
@@ -109,10 +90,11 @@ void Application::tick() {
       }
    } else {
       // we don't have an active pixel sweeper.  Let's create one.
-      const DigitDescriptor& desc = _kDigitDescriptors[_currentDigit % 4];
+      const PixelGlyph*      pPixelGlyph = nullptr;
+      const DigitDescriptor& desc        = _kDigitDescriptors[_currentDigit % 4];
       _colorManager.setTheme(desc.colorTheme);
-      _digitTransitionSweep.initialize(((_currentDigit / 4) == 0) ? _digit1Glyph : _digit0Glyph,
-                                       desc.pointOrigin, _colorManager);
+      fSuccess = _iDigitProvider.getDigitFor(((_currentDigit / 4) == 0) ? 0 : 1, pPixelGlyph);
+      _digitTransitionSweep.initialize(*pPixelGlyph, desc.pointOrigin, _colorManager);
       _pixelSweeper = new PixelSweeper(kPointPath5x7Random, 10, _digitTransitionSweep);
    }
    _displaySurface.show();
@@ -130,9 +112,13 @@ bool Application::renderThemeZeros() {
    _displaySurface.clear();
 
    for (const DigitDescriptor& digitDescriptor : _kDigitDescriptors) {
+      const PixelGlyph* pPixelGlyph = nullptr;
+
+      fSuccess = _iDigitProvider.getDigitFor(0, pPixelGlyph);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
       _colorManager.setTheme(digitDescriptor.colorTheme);
 
-      fSuccess = _digit0Glyph.draw(_displaySurface, digitDescriptor.pointOrigin.getX(),
+      fSuccess = pPixelGlyph->draw(_displaySurface, digitDescriptor.pointOrigin.getX(),
                                    digitDescriptor.pointOrigin.getY(), _colorManager);
       EHRaiseErrorWhenNotSuccess(fSuccess, 0);
    }

@@ -34,6 +34,7 @@ bool PixelGlyph::getPixelColorForPoint(const Point& ptLocal, const ColorManager&
    EHRaiseErrorWhen((iXOffset < 0 || iYOffset < 0 || (unsigned int)iXOffset >= _uiWidth ||
                      (unsigned int)iYOffset >= _uiHeight),
                     EH_PACK_INT16_TO_LONG(iXOffset, iYOffset));
+   EHRaiseErrorWhen(nullptr == _puiRows, 0);
    {
       // access the bit that encodes the 'active' state of this pixel.  An element
       // within _puiRows encodes the bits for an entire row.  Our left to right rendering
@@ -48,7 +49,8 @@ bool PixelGlyph::getPixelColorForPoint(const Point& ptLocal, const ColorManager&
 End:
    if (EHErrorRaised) {
       char szContext[64];
-      snprintf(szContext, sizeof(szContext), "width:%d height:%d", _uiWidth, _uiHeight);
+      snprintf(szContext, sizeof(szContext), "puiRows:%p width:%d height:%d", (void*)_puiRows,
+               _uiWidth, _uiHeight);
       EHSetAdditionalContext(szContext);
       EHEmitMsgDebug;
    }
