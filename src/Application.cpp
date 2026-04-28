@@ -1,31 +1,8 @@
 #include "Application.h"
+#include "PointPath.h"
 #include "errorh.h"
 
 // clang-format off
-const Application::DigitDescriptor Application::_kDigitDescriptors[4] = {
-   {Point(1, 0), ColorTheme::RedLed},
-   {Point(8, 0), ColorTheme::TransitYellowGreen},
-   {Point(15, 0), ColorTheme::AgedPhosphor},
-   {Point(22, 0), ColorTheme::WarmBusMarquee},
-};
-
-// 5x7 serpentine / alternating row-major path.
-// Origin is (0,0). Even rows go left->right, odd rows go right->left.
-
-static const Point kPointPath5x7SerpentinePoints[] = {
-   Point(0, 0), Point(1, 0), Point(2, 0), Point(3, 0), Point(4, 0),
-   Point(4, 1), Point(3, 1), Point(2, 1), Point(1, 1), Point(0, 1),
-   Point(0, 2), Point(1, 2), Point(2, 2), Point(3, 2), Point(4, 2),
-   Point(4, 3), Point(3, 3), Point(2, 3), Point(1, 3), Point(0, 3),
-   Point(0, 4), Point(1, 4), Point(2, 4), Point(3, 4), Point(4, 4),
-   Point(4, 5), Point(3, 5), Point(2, 5), Point(1, 5), Point(0, 5),
-   Point(0, 6), Point(1, 6), Point(2, 6), Point(3, 6), Point(4, 6),
-};
-
-static const PointPath kPointPath5x7Serpentine(
-   kPointPath5x7SerpentinePoints,
-   sizeof(kPointPath5x7SerpentinePoints) / sizeof(kPointPath5x7SerpentinePoints[0])
-);
 
 static const Point kPointPath5x7RandomPoints[] = {
    Point(2, 3), Point(4, 0), Point(1, 6), Point(0, 2), Point(3, 5),
@@ -48,11 +25,7 @@ Application::Application(const IDigitProvider& iDigitProvider) :
     _ledBuffer(),
     _displaySurface(_coordinateMapper, _ledBuffer),
     _colorManager(),
-    _pixelSweeper(nullptr),
-    _pixelGlyphNull(nullptr, 0, 0),
-    _digitTransitionSweep(_displaySurface, _colorManager, _pixelGlyphNull),
-    _iDigitProvider(iDigitProvider),
-    _currentDigit(0) {
+    _iDigitProvider(iDigitProvider) {
 }
 
 void Application::initialize() {
@@ -62,70 +35,10 @@ void Application::initialize() {
    pinMode(_kBuzzerPin, INPUT_PULLDOWN);
 
    _displaySurface.initialize();
-
-   if (!renderThemeZeros()) {
-      Serial.println("Render failure");
-   }
-
    _displaySurface.show();
 
    Serial.println("Application initialized");
 }
 
 void Application::tick() {
-   EHInitialize;
-   bool fSuccess = false;
-
-   // if we have an active pixel sweeper, then tick() it
-   if (nullptr != _pixelSweeper) {
-      fSuccess = _pixelSweeper->handleTick();
-      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-
-      // if the sweeper is done, dispose of it
-      if (_pixelSweeper->getIsDone()) {
-         delete (_pixelSweeper);
-         _pixelSweeper = nullptr;
-         // stage the index  of the next one
-         _currentDigit = (1 + _currentDigit) % 8;
-      }
-   } else {
-      // we don't have an active pixel sweeper.  Let's create one.
-      const PixelGlyph*      pPixelGlyph = nullptr;
-      const DigitDescriptor& desc        = _kDigitDescriptors[_currentDigit % 4];
-      _colorManager.setTheme(desc.colorTheme);
-      fSuccess = _iDigitProvider.getDigitFor(((_currentDigit / 4) == 0) ? 0 : 1, pPixelGlyph);
-      _digitTransitionSweep.initialize(*pPixelGlyph, desc.pointOrigin, _colorManager);
-      _pixelSweeper = new PixelSweeper(kPointPath5x7Random, 10, _digitTransitionSweep);
-   }
-   _displaySurface.show();
-
-End:
-   if (EHErrorRaised) {
-      EHEmitMsg;
-   }
-}
-
-bool Application::renderThemeZeros() {
-   EHInitialize;
-   bool fSuccess = false;
-
-   _displaySurface.clear();
-
-   for (const DigitDescriptor& digitDescriptor : _kDigitDescriptors) {
-      const PixelGlyph* pPixelGlyph = nullptr;
-
-      fSuccess = _iDigitProvider.getDigitFor(0, pPixelGlyph);
-      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-      _colorManager.setTheme(digitDescriptor.colorTheme);
-
-      fSuccess = pPixelGlyph->draw(_displaySurface, digitDescriptor.pointOrigin.getX(),
-                                   digitDescriptor.pointOrigin.getY(), _colorManager);
-      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-   }
-
-End:
-   if (EHErrorRaised) {
-      EHEmitMsgDebug;
-   }
-   return EHIsSuccess;
 }

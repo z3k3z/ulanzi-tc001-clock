@@ -11,10 +11,6 @@ bool DisplaySurface::initialize() {
    FastLED.setBrightness(_kBrightness);
    FastLED.clear(true);
 
-End:
-   if (EHErrorRaised) {
-      EHEmitMsgDebug;
-   }
    return EHIsSuccess;
 }
 
