@@ -31,7 +31,8 @@ bool PixelGlyph::getPixelColorForPoint(const Point& ptLocal, const ColorManager&
    int iXOffset = ptLocal.getX();
    int iYOffset = ptLocal.getY();
 
-   EHRaiseErrorWhen((iXOffset < 0 || iYOffset < 0 || iXOffset >= _uiWidth || iYOffset >= _uiHeight),
+   EHRaiseErrorWhen((iXOffset < 0 || iYOffset < 0 || (unsigned int)iXOffset >= _uiWidth ||
+                     (unsigned int)iYOffset >= _uiHeight),
                     EH_PACK_INT16_TO_LONG(iXOffset, iYOffset));
    {
       // access the bit that encodes the 'active' state of this pixel.  An element

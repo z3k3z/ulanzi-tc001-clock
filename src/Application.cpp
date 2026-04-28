@@ -1,8 +1,6 @@
 #include "Application.h"
 #include "errorh.h"
 
-bool g_fEHDebugEnabled = true;
-
 // clang-format off
 const uint8_t Application::_kDigit0Rows[7] = {
       0b01110,
@@ -112,7 +110,7 @@ void Application::tick() {
    } else {
       // we don't have an active pixel sweeper.  Let's create one.
       const DigitDescriptor& desc = _kDigitDescriptors[_currentDigit % 4];
-      _colorManager.setTheme(_kDigitDescriptors->colorTheme);
+      _colorManager.setTheme(desc.colorTheme);
       _digitTransitionSweep.initialize(((_currentDigit / 4) == 0) ? _digit1Glyph : _digit0Glyph,
                                        desc.pointOrigin, _colorManager);
       _pixelSweeper = new PixelSweeper(kPointPath5x7Random, 10, _digitTransitionSweep);

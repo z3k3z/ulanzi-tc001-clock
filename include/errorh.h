@@ -90,7 +90,7 @@ typedef struct _EHErrorContext {
       Serial.print("\n");                                                                          \
    } while (0);
 
-// this needs to live somewhere in main.  Set to true to emit debug errors
+// See errorh.cpp.  Set to true, there, to emit debug messages
 extern bool g_fEHDebugEnabled;
 
 // emit a formatted error trace to Serial when debug is enabled
