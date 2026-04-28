@@ -8,4 +8,7 @@
         "ERRORH",
         "LEDBUFFER"
     ],
+    "cSpell.ignorePaths": [
+        "platformio.ini"
+    ],
 }

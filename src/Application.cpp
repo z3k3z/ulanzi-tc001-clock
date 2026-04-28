@@ -86,7 +86,7 @@ void Application::tick() {
          delete (_pixelSweeper);
          _pixelSweeper = nullptr;
          // stage the index  of the next one
-         _currentDigit = ++_currentDigit % 8;
+         _currentDigit = (1 + _currentDigit) % 8;
       }
    } else {
       // we don't have an active pixel sweeper.  Let's create one.
