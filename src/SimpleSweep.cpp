@@ -35,8 +35,9 @@ bool SimpleSweep::landingOnPoint(const Point& point) {
    _lastPointDataCache.fHasData = true;
 
    // draw the cursor
-   fSuccess = _displaySurface.setPixelColor(ptWithOffset.getX(), ptWithOffset.getY(),
-                                            _colorManager.getTransitionCursorColor());
+   fSuccess =
+       _displaySurface.setPixelColor(ptWithOffset.getX(), ptWithOffset.getY(),
+                                     _displaySurface.getColorManager().getTransitionCursorColor());
    EHRaiseErrorWhenNotSuccess(fSuccess,
                               EH_PACK_INT16_TO_LONG(ptWithOffset.getX(), ptWithOffset.getY()));
 

@@ -5,9 +5,8 @@ bool DigitTransitionSweep::leavingFromPoint(const Point& point) {
    EHInitialize;
    bool fSuccess = false;
 
-   EHRaiseErrorWhen(nullptr == _pColorManager, 0);
    EHRaiseErrorWhen(nullptr == _pToGlyph, 0);
-   fSuccess = _pToGlyph->drawPixelForPoint(_displaySurface, point, _ptOrigin, *_pColorManager);
+   fSuccess = _pToGlyph->drawPixelForPoint(_displaySurface, point, _ptOrigin);
    EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(point.getX(), point.getY()));
 
 End:
@@ -23,9 +22,9 @@ bool DigitTransitionSweep::landingOnPoint(const Point& point) {
    Point ptWithOffset(point + _ptOrigin); // account for origin offset
 
    // draw the cursor
-   EHRaiseErrorWhen(nullptr == _pColorManager, 0);
-   fSuccess = _displaySurface.setPixelColor(ptWithOffset.getX(), ptWithOffset.getY(),
-                                            _pColorManager->getTransitionCursorColor());
+   fSuccess =
+       _displaySurface.setPixelColor(ptWithOffset.getX(), ptWithOffset.getY(),
+                                     _displaySurface.getColorManager().getTransitionCursorColor());
    EHRaiseErrorWhenNotSuccess(fSuccess,
                               EH_PACK_INT16_TO_LONG(ptWithOffset.getX(), ptWithOffset.getY()));
 

@@ -3,8 +3,7 @@
 #include "Rectangle.h"
 #include "errorh.h"
 
-bool PixelGlyph::draw(DisplaySurface& displaySurface, const Point& ptOrigin,
-                      const ColorManager& colorManager) const {
+bool PixelGlyph::draw(DisplaySurface& displaySurface, const Point& ptOrigin) const {
    EHInitialize;
 
    Rectangle     glyphBounds(0, 0, _uiWidth, _uiHeight);
@@ -14,7 +13,7 @@ bool PixelGlyph::draw(DisplaySurface& displaySurface, const Point& ptOrigin,
 
    // iterate over the glyph pixels
    while (pointIterator.next(point)) {
-      fSuccess = drawPixelForPoint(displaySurface, point, ptOrigin, colorManager);
+      fSuccess = drawPixelForPoint(displaySurface, point, ptOrigin);
       EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(point.getX(), point.getY()));
    }
 
@@ -25,7 +24,7 @@ End:
    return EHIsSuccess;
 }
 
-bool PixelGlyph::getPixelColorForPoint(const Point& ptLocal, const ColorManager& colorManager,
+bool PixelGlyph::getPixelColorForPoint(DisplaySurface& displaySurface, const Point& ptLocal,
                                        CRGB& crgbPixelColor) const {
    EHInitialize;
    int iXOffset = ptLocal.getX();
@@ -36,6 +35,8 @@ bool PixelGlyph::getPixelColorForPoint(const Point& ptLocal, const ColorManager&
                     EH_PACK_INT16_TO_LONG(iXOffset, iYOffset));
    EHRaiseErrorWhen(nullptr == _puiRows, 0);
    {
+      const ColorManager& colorManager = displaySurface.getColorManager();
+
       // access the bit that encodes the 'active' state of this pixel.  An element
       // within _puiRows encodes the bits for an entire row.  Our left to right rendering
       // pulls high order to low order bits, respectfully.
@@ -58,12 +59,12 @@ End:
 }
 
 bool PixelGlyph::drawPixelForPoint(DisplaySurface& displaySurface, const Point& ptLocal,
-                                   const Point& ptOrigin, const ColorManager& colorManager) const {
+                                   const Point& ptOrigin) const {
    EHInitialize;
    bool fSuccess;
    CRGB color;
 
-   fSuccess = getPixelColorForPoint(ptLocal, colorManager, color);
+   fSuccess = getPixelColorForPoint(displaySurface, ptLocal, color);
    EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(ptLocal.getX(), ptLocal.getY()));
    {
       Point ptDisplay = ptLocal + ptOrigin;

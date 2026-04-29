@@ -1,6 +1,5 @@
 #ifndef PIXEL_GLYPH_H
 #define PIXEL_GLYPH_H
-#include "ColorManager.h"
 #include "DisplaySurface.h"
 #include "Point.h"
 
@@ -18,17 +17,15 @@ class PixelGlyph {
       _uiHeight = uiHeight;
    }
 
-   bool draw(DisplaySurface& displaySurface, int iX, int iY,
-             const ColorManager& colorManager) const {
+   bool draw(DisplaySurface& displaySurface, int iX, int iY) const {
       Point pt(iX, iY);
-      return draw(displaySurface, pt, colorManager);
+      return draw(displaySurface, pt);
    }
 
-   bool draw(DisplaySurface& displaySurface, const Point& ptOrigin,
-             const ColorManager& colorManager) const;
-   bool getPixelColorForPoint(const Point& ptLocal, const ColorManager& colorManager,
+   bool draw(DisplaySurface& displaySurface, const Point& ptOrigin) const;
+   bool getPixelColorForPoint(DisplaySurface& displaySurface, const Point& ptLocal,
                               CRGB& crgbPixelColor) const;
    bool drawPixelForPoint(DisplaySurface& displaySurface, const Point& ptLocal,
-                          const Point& ptOrigin, const ColorManager& colorManager) const;
+                          const Point& ptOrigin) const;
 };
 #endif

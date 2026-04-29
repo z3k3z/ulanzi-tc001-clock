@@ -24,7 +24,6 @@ class Application {
    CoordinateMapper      _coordinateMapper;
    LEDBuffer             _ledBuffer;
    DisplaySurface        _displaySurface;
-   ColorManager          _colorManager;
    const IDigitProvider& _iDigitProvider;
    ValueTracker          _valueTracker;
 

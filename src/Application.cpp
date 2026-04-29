@@ -24,7 +24,6 @@ Application::Application(const IDigitProvider& iDigitProvider) :
     _coordinateMapper(_kMatrixWidth, _kMatrixHeight),
     _ledBuffer(),
     _displaySurface(_coordinateMapper, _ledBuffer),
-    _colorManager(),
     _iDigitProvider(iDigitProvider),
     _valueTracker() {
 
@@ -44,7 +43,7 @@ void Application::initialize() {
 
    pinMode(_kBuzzerPin, INPUT_PULLDOWN);
 
-   _colorManager.setTheme(ColorTheme::WarmBusMarquee);
+   _displaySurface.getColorManager().setTheme(ColorTheme::WarmBusMarquee);
    _displaySurface.initialize();
    _displaySurface.clear();
    fSuccess = _renderInitialDisplay();
@@ -103,7 +102,7 @@ bool Application::_renderDigitFor(unsigned int uiDigit, unsigned int uiValue) {
       EHRaiseErrorWhen(nullptr == pPixelGlyph, uiValue);
 
       fSuccess = pPixelGlyph->draw(_displaySurface, _digits[uiDigit].ptOrigin.getX(),
-                                   _digits[uiDigit].ptOrigin.getY(), _colorManager);
+                                   _digits[uiDigit].ptOrigin.getY());
       EHRaiseErrorWhenNotSuccess(fSuccess, 0);
    }
 

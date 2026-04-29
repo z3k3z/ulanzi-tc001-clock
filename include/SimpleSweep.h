@@ -1,15 +1,13 @@
 #ifndef SIMPLE_SWEEP_H
 #define SIMPLE_SWEEP_H
 
-#include "ColorManager.h"
 #include "DisplaySurface.h"
 #include "PixelSweeper.h"
 
 class SimpleSweep : public PixelSweeper::ISweepListener {
  private:
-   Point               _ptOrigin;
-   DisplaySurface&     _displaySurface;
-   const ColorManager& _colorManager;
+   Point           _ptOrigin;
+   DisplaySurface& _displaySurface;
 
    struct {
       bool fHasData;
@@ -17,9 +15,8 @@ class SimpleSweep : public PixelSweeper::ISweepListener {
    } _lastPointDataCache;
 
  public:
-   SimpleSweep(DisplaySurface& displaySurface, const ColorManager& colorManager,
-               const Point& ptOrigin = Point(0, 0)) :
-       _ptOrigin(ptOrigin), _displaySurface(displaySurface), _colorManager(colorManager) {
+   SimpleSweep(DisplaySurface& displaySurface, const Point& ptOrigin = Point(0, 0)) :
+       _ptOrigin(ptOrigin), _displaySurface(displaySurface) {
       initialize(ptOrigin);
    }
 
