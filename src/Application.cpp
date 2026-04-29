@@ -25,18 +25,24 @@ Application::Application(const IDigitProvider& iDigitProvider) :
     _ledBuffer(),
     _displaySurface(_coordinateMapper, _ledBuffer),
     _iDigitProvider(iDigitProvider),
+    _digitSlots{
+        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x7Random, _kSweepRateMs,
+                  Point(22, 0), _getInitialGlyph(_iDigitProvider)),
+        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x7Random, _kSweepRateMs,
+                  Point(15, 0), _getInitialGlyph(_iDigitProvider)),
+        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x7Random, _kSweepRateMs, Point(8, 0),
+                  _getInitialGlyph(_iDigitProvider)),
+        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x7Random, _kSweepRateMs, Point(1, 0),
+                  _getInitialGlyph(_iDigitProvider)),
+    },
     _valueTracker() {
 
    _valueTracker.setInitialValue(0);
-   _digits[3].ptOrigin = Point(1, 0);
-   _digits[2].ptOrigin = Point(8, 0);
-   _digits[1].ptOrigin = Point(15, 0);
-   _digits[0].ptOrigin = Point(22, 0);
 }
 
 void Application::initialize() {
    EHInitialize;
-   bool fSuccess;
+   bool fSuccess = false;
 
    Serial.begin(115200);
    delay(500);
@@ -46,8 +52,10 @@ void Application::initialize() {
    _displaySurface.getColorManager().setTheme(ColorTheme::WarmBusMarquee);
    _displaySurface.initialize();
    _displaySurface.clear();
-   fSuccess = _renderInitialDisplay();
+
+   fSuccess = _initializeDigitSlots();
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+
    _displaySurface.show();
 
    Serial.println("Application initialized");
@@ -60,9 +68,10 @@ End:
 
 void Application::tick() {
    EHInitialize;
-   bool fSuccess    = false;
-   bool fHasChanged = false;
-   int  iTimeValue  = 0;
+   bool fSuccess      = false;
+   bool fHasChanged   = false;
+   bool fDisplayDirty = false;
+   int  iTimeValue    = 0;
 
    fSuccess = _getTimeAsInt(iTimeValue);
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
@@ -72,14 +81,32 @@ void Application::tick() {
 
    if (fHasChanged) {
       for (unsigned int ui = 0; ui < _kNumDigits; ui++) {
-         int iNewValue;
+         int iNewValue = 0;
+
          fSuccess = _valueTracker.queryDigitNewValue(ui, iNewValue, fHasChanged);
          EHRaiseErrorWhenNotSuccess(fSuccess, ui);
+
          if (fHasChanged) {
-            fSuccess = _renderDigitFor(ui, iNewValue);
+            fSuccess = _digitSlots[ui].beginTransitionTo((unsigned int)iNewValue);
             EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(ui, iNewValue));
+
+            fDisplayDirty = true;
          }
       }
+   }
+
+   for (unsigned int ui = 0; ui < _kNumDigits; ui++) {
+      DigitSlotState stateBeforeTick = _digitSlots[ui].getCurrentState();
+
+      fSuccess = _digitSlots[ui].handleTick();
+      EHRaiseErrorWhenNotSuccess(fSuccess, ui);
+
+      if (stateBeforeTick == DigitSlotState::Transitioning) {
+         fDisplayDirty = true;
+      }
+   }
+
+   if (fDisplayDirty) {
       _displaySurface.show();
    }
 
@@ -89,36 +116,12 @@ End:
    }
 }
 
-bool Application::_renderDigitFor(unsigned int uiDigit, unsigned int uiValue) {
-   EHInitialize;
-   bool fSuccess;
-
-   EHRaiseErrorWhen((_kNumDigits <= uiDigit), uiDigit);
-   {
-      const PixelGlyph* pPixelGlyph = nullptr;
-
-      fSuccess = _iDigitProvider.getDigitFor(uiValue, pPixelGlyph);
-      EHRaiseErrorWhenNotSuccess(fSuccess, uiValue);
-      EHRaiseErrorWhen(nullptr == pPixelGlyph, uiValue);
-
-      fSuccess = pPixelGlyph->draw(_displaySurface, _digits[uiDigit].ptOrigin.getX(),
-                                   _digits[uiDigit].ptOrigin.getY());
-      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-   }
-
-End:
-   if (EHErrorRaised) {
-      EHEmitMsgDebug;
-   }
-   return EHIsSuccess;
-}
-
-bool Application::_renderInitialDisplay() {
+bool Application::_initializeDigitSlots() {
    EHInitialize;
    bool fSuccess = false;
 
    for (unsigned int ui = 0; ui < _kNumDigits; ui++) {
-      fSuccess = _renderDigitFor(ui, 0);
+      fSuccess = _digitSlots[ui].initialize(_kInitialDigitVal);
       EHRaiseErrorWhenNotSuccess(fSuccess, ui);
    }
 
@@ -140,4 +143,12 @@ bool Application::_getTimeAsInt(int& iValue) {
    iValue       = (iHour * 1000) + (iMinute * 10) + iSecondT;
 
    return true;
+}
+
+const PixelGlyph& Application::_getInitialGlyph(const IDigitProvider& iDigitProvider) {
+   const PixelGlyph* pPixelGlyph = nullptr;
+
+   iDigitProvider.getDigitFor(_kInitialDigitVal, pPixelGlyph);
+
+   return *pPixelGlyph;
 }

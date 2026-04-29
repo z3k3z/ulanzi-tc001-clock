@@ -2,6 +2,7 @@
 #define APPLICATION_H
 
 #include "CoordinateMapper.h"
+#include "DigitSlot.h"
 #include "DisplaySurface.h"
 #include "FiveBySevenDigitProvider.h"
 #include "LEDBuffer.h"
@@ -10,21 +11,18 @@
 
 class Application {
  private:
-   struct DigitDescriptor {
-      Point ptOrigin;
-   };
+   static constexpr uint8_t      _kBuzzerPin       = 15;
+   static constexpr unsigned int _kMatrixWidth     = 32;
+   static constexpr unsigned int _kMatrixHeight    = 8;
+   static constexpr unsigned int _kNumDigits       = 4;
+   static constexpr unsigned int _kSweepRateMs     = 10;
+   static constexpr unsigned int _kInitialDigitVal = 0;
 
- private:
-   static constexpr uint8_t      _kBuzzerPin    = 15;
-   static constexpr unsigned int _kMatrixWidth  = 32;
-   static constexpr unsigned int _kMatrixHeight = 8;
-   static constexpr unsigned int _kNumDigits    = 4;
-
-   DigitDescriptor       _digits[_kNumDigits];
    CoordinateMapper      _coordinateMapper;
    LEDBuffer             _ledBuffer;
    DisplaySurface        _displaySurface;
    const IDigitProvider& _iDigitProvider;
+   DigitSlot             _digitSlots[_kNumDigits];
    ValueTracker          _valueTracker;
 
  public:
@@ -34,9 +32,10 @@ class Application {
    void tick();
 
  private:
-   bool _renderDigitFor(unsigned int uiDigit, unsigned int uiValue);
-   bool _renderInitialDisplay();
+   bool _initializeDigitSlots();
    bool _getTimeAsInt(int& iValue);
+
+   static const PixelGlyph& _getInitialGlyph(const IDigitProvider& iDigitProvider);
 };
 
 #endif
