@@ -49,8 +49,8 @@ bool PixelGlyph::getPixelColorForPoint(const Point& ptLocal, const ColorManager&
 End:
    if (EHErrorRaised) {
       char szContext[64];
-      snprintf(szContext, sizeof(szContext), "puiRows:%p width:%d height:%d", (void*)_puiRows,
-               _uiWidth, _uiHeight);
+      snprintf(szContext, 64, "puiRows:%p width:%d height:%d", (void*)_puiRows, _uiWidth,
+               _uiHeight);
       EHSetAdditionalContext(szContext);
       EHEmitMsgDebug;
    }
@@ -75,8 +75,8 @@ bool PixelGlyph::drawPixelForPoint(DisplaySurface& displaySurface, const Point& 
 End:
    if (EHErrorRaised) {
       char szContext[64];
-      snprintf(szContext, sizeof(szContext), "Local X:%d, Y:%d  Origin X:%d, Y:%d", ptLocal.getX(),
-               ptLocal.getY(), ptOrigin.getX(), ptOrigin.getY());
+      snprintf(szContext, 64, "Local X:%d, Y:%d  Origin X:%d, Y:%d", ptLocal.getX(), ptLocal.getY(),
+               ptOrigin.getX(), ptOrigin.getY());
       EHSetAdditionalContext(szContext);
       EHEmitMsgDebug;
    }

@@ -25,20 +25,120 @@ Application::Application(const IDigitProvider& iDigitProvider) :
     _ledBuffer(),
     _displaySurface(_coordinateMapper, _ledBuffer),
     _colorManager(),
-    _iDigitProvider(iDigitProvider) {
+    _iDigitProvider(iDigitProvider),
+    _valueTracker() {
+
+   _valueTracker.setInitialValue(0);
+   _digits[3].ptOrigin = Point(1, 0);
+   _digits[2].ptOrigin = Point(8, 0);
+   _digits[1].ptOrigin = Point(15, 0);
+   _digits[0].ptOrigin = Point(22, 0);
 }
 
 void Application::initialize() {
+   EHInitialize;
+   bool fSuccess;
+
    Serial.begin(115200);
    delay(500);
 
    pinMode(_kBuzzerPin, INPUT_PULLDOWN);
 
+   _colorManager.setTheme(ColorTheme::WarmBusMarquee);
    _displaySurface.initialize();
+   _displaySurface.clear();
+   fSuccess = _renderInitialDisplay();
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
    _displaySurface.show();
 
    Serial.println("Application initialized");
+
+End:
+   if (EHErrorRaised) {
+      EHEmitMsg;
+   }
 }
 
 void Application::tick() {
+   EHInitialize;
+   bool fSuccess    = false;
+   bool fHasChanged = false;
+   int  iTimeValue  = 0;
+
+   fSuccess = _getTimeAsInt(iTimeValue);
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+
+   fSuccess = _valueTracker.updateValue(iTimeValue, fHasChanged);
+   EHRaiseErrorWhenNotSuccess(fSuccess, iTimeValue);
+
+   if (fHasChanged) {
+      for (unsigned int ui = 0; ui < _kNumDigits; ui++) {
+         int iNewValue;
+         fSuccess = _valueTracker.queryDigitNewValue(ui, iNewValue, fHasChanged);
+         EHRaiseErrorWhenNotSuccess(fSuccess, ui);
+         if (fHasChanged) {
+            fSuccess = _renderDigitFor(ui, iNewValue);
+            EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(ui, iNewValue));
+         }
+      }
+      _displaySurface.show();
+   }
+
+End:
+   if (EHErrorRaised) {
+      EHEmitMsg;
+   }
+}
+
+bool Application::_renderDigitFor(unsigned int uiDigit, unsigned int uiValue) {
+   EHInitialize;
+   bool fSuccess;
+
+   EHRaiseErrorWhen((_kNumDigits <= uiDigit), uiDigit);
+   {
+      const PixelGlyph* pPixelGlyph = nullptr;
+
+      fSuccess = _iDigitProvider.getDigitFor(uiValue, pPixelGlyph);
+      EHRaiseErrorWhenNotSuccess(fSuccess, uiValue);
+      EHRaiseErrorWhen(nullptr == pPixelGlyph, uiValue);
+
+      fSuccess = pPixelGlyph->draw(_displaySurface, _digits[uiDigit].ptOrigin.getX(),
+                                   _digits[uiDigit].ptOrigin.getY(), _colorManager);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+   }
+
+End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
+   return EHIsSuccess;
+}
+
+bool Application::_renderInitialDisplay() {
+   EHInitialize;
+   bool fSuccess = false;
+
+   for (unsigned int ui = 0; ui < _kNumDigits; ui++) {
+      fSuccess = _renderDigitFor(ui, 0);
+      EHRaiseErrorWhenNotSuccess(fSuccess, ui);
+   }
+
+End:
+   if (EHErrorRaised) {
+      EHEmitMsgDebug;
+   }
+   return EHIsSuccess;
+}
+
+bool Application::_getTimeAsInt(int& iValue) {
+   time_t    now = time(nullptr);
+   struct tm tmNow;
+   localtime_r(&now, &tmNow);
+
+   int iHour    = tmNow.tm_hour % 10;
+   int iMinute  = tmNow.tm_min;
+   int iSecondT = tmNow.tm_sec / 10;
+   iValue       = (iHour * 1000) + (iMinute * 10) + iSecondT;
+
+   return true;
 }

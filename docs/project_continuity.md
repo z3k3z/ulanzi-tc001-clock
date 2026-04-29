@@ -57,14 +57,21 @@ Adopted project-wide:
 - `EHInitialize`
 - `EHRaiseError...`
 - `EHEmitMsg`
+- `EHEmitMsgDebug`
+- optional additional context pointer
 - epilogue via `End:` label
 
 Pattern:
 - collect file / line / packed context
 - branch to epilogue
 - caller decides severity
-
 This is intentionally lightweight and uniform to reduce visual cyclomatic complexity.
+Packed long context commonly stores:
+- two 16-bit packed values
+- coordinate pairs
+- small state payloads
+
+Debug emission is intentionally suppressible by framework flag.
 
 ## Current Core Architecture
 
@@ -73,14 +80,16 @@ Owns top-level composition:
 - CoordinateMapper
 - LEDBuffer
 - DisplaySurface
-- PixelGlyph digit assets
 - ColorManager
-- active PixelSweeper lifecycle
+- IDigitProvider reference
+- ValueTracker
 
 Responsibilities:
 - initialize hardware
-- render four themed zero glyphs
-- stage sequential sweep experiments
+- render 4 digits
+- obtain current time surrogate
+- detect changed digits
+- render only changed digits
 
 ### CoordinateMapper
 Maps Cartesian `(x,y)` into serpentine WS2812 index:
@@ -97,6 +106,7 @@ FastLED initialization consumes LEDBuffer storage.
 
 ### DisplaySurface
 Owns rendering boundary above FastLED.
+
 Responsibilities:
 - initialize FastLED
 - set pixel color
@@ -108,39 +118,57 @@ Important rule:
 - `show()` remains separate from mutation
 - lower layers do not flush automatically
 
-This preserves future composability.
+FastLED is intentionally hidden beneath DisplaySurface.
 
-### Point / Rectangle / PointIterator
-Minimal geometry layer introduced.
+### Point / Rectangle / PointIterator / PointPath
 
 #### Point
 - x/y coordinate holder
+- operator+
+- operator=
 
 #### Rectangle
 - origin + extent
-- containment semantics
 
 #### PointIterator
 Traverses rectangle:
 - XMajor
 - YMajor
 
-Used by:
-- PixelGlyph
-- PixelSweeper
+#### PointPath
+Static ordered point collection
+
+#### PointPathIterator
+Traverses arbitrary point arrays
+
+This now supports arbitrary sweep ordering independent of rectangle traversal.
 
 ## PixelGlyph
 Current digit renderer:
 - bit-row encoded glyphs
-- inactive pixel field visible
-- active/inactive colors via ColorManager
-- traversal via PointIterator
+- active/inactive pixels via ColorManager
+- traversal abstraction separated from glyph semantics
 
-Current glyphs:
-- digit 0
-- digit 1
+Provides:
+- `draw()`
+- `drawPixelForPoint()`
+- `getPixelColorForPoint()`
 
-Glyph draw now accepts Point origin overload.
+Glyph definitions are no longer owned by Application.
+
+## Digit Provider Architecture
+
+### IDigitProvider
+Abstract interface:
+- supplies glyph by numeric digit
+
+Contract:
+- `bool getDigitFor(unsigned int uiDigit, const PixelGlyph*& pPixelGlyph) const`
+
+### FiveBySevenDigitProvider
+Owns digits 0 through 9.
+
+This is now the authoritative glyph source.
 
 ## ColorManager
 Theme-driven semantic color provider.
@@ -156,13 +184,16 @@ Provides:
 - inactive color
 - transition cursor color
 
+Current settled theme:
+- WarmBusMarquee
+
 Long-term goal:
 semantic color + brightness coordination.
 
 ## Brightness / Theme Direction
 Current observed tuning:
-- global brightness = 50
-- inactive field brightness around 8 gives useful vintage lattice visibility
+- global brightness increased to improve inactive field visibility
+- inactive field kept dim but visible
 
 Long-term architectural goal:
 ColorManager should eventually coordinate:
@@ -171,77 +202,95 @@ ColorManager should eventually coordinate:
 - global brightness
 - ambient brightness adaptation
 
-## PixelSweeper
-First animation primitive now working on device.
+## Sweep Architecture
+
+### PixelSweeper
+Traversal engine only.
 
 Responsibilities:
-- rectangle traversal using PointIterator
-- timed cursor movement via millis()
-- restore previous pixel color
-- draw transition cursor
-- completion state
+- timing
+- path stepping
+- listener dispatch
 
-Current behavior:
-- one bright cursor sweeps rectangle
-- previous pixel restored after advance
-- caller flushes via DisplaySurface.show()
+No rendering policy embedded.
 
-Important architectural rule:
-PixelSweeper mutates only.
-Application decides frame flush.
+### ISweepListener
+Virtual interface:
+- landingOnPoint()
+- leavingFromPoint()
 
-## Current Application Runtime Behavior
-- four themed zero glyphs rendered at startup
-- DigitDescriptor array defines:
-  - Point origin
-  - ColorTheme
-- active PixelSweeper allocated per digit
-- sweeps digits sequentially
-- sweeper destroyed on completion
-- next digit staged cyclically
+### SimpleSweep
+Current direct sweep implementation.
 
-## DigitDescriptor
-Current data-driven rendering descriptor:
-- Point origin
-- ColorTheme
+### DigitTransitionSweep
+Current transition implementation:
+- leaves old glyph
+- lands new glyph
 
-Used to render four zeroes cleanly without hardcoded repeated draw logic.
+Transition is functioning on device.
 
-## Heap Usage Note
-PixelSweeper currently uses heap allocation (`new/delete`) inside Application runtime.
-This is acceptable for current experimentation but should be monitored.
-Potential future refinement:
-- reusable member-owned sweeper instance
-- resettable actor lifecycle
+## ValueTracker
+Numeric state tracker.
+
+Responsibilities:
+- hold previous/current values
+- cache zero-padded text representations
+- answer per-digit changes
+
+Current digit width:
+- 4 digits
+
+Used for:
+- counter
+- temporary clock surrogate
+- future HHMM clock logic
+
+Current query model:
+- digit offset counted from right
+
+## Current Runtime Behavior
+Application renders four digits.
+
+Value source currently:
+- HMMT
+where:
+- H = low hour digit
+- MM = minute
+- T = tens of seconds
+
+This is intentionally sufficient for visible transition testing.
+
+Only changed digits are re-rendered.
+
+## Immediate Next Direction
+Transition architecture should evolve toward per-digit state:
+
+- Idle
+- Transitioning
+- Complete
+
+This is prerequisite for:
+- staggered rollover
+- right-to-left carry behavior
+- independent digit timing
 
 ## Future Architecture Candidates
 
 ### Tick Listener System
-Likely needed later.
-Purpose:
+Likely needed later:
 - independently registered animation actors
-- staggered digit transitions
-- per-pixel fades
+- fades
+- digit transitions
+- timed visual effects
 
 ### Sound
-Possible future ambient sweep sound.
-Device speaker confirmed usable.
-Likely only event-based:
-- minute rollover
-- visible transition events
-- avoid continuous fatigue
+Possible future ambient sweep sound:
+- speaker confirmed usable
+- likely sparse event-based usage only
 
 ### Seasonal Background Themes
-Future experimental option:
-- July 4th styling
-- Christmas twinkle colors
-Potentially removable if visually noisy.
+Still parked:
+- July 4th
+- Christmas twinkle
 
-## Immediate Next Focus
-Cursor sweep experimentation:
-- refine transit-style motion feel
-- likely descending row wipe / cursor variants
-- explore timing character
-- preserve vintage transit display inspiration
-
-Transition architecture remains intentionally experimental.
+May later be rejected if visually noisy.
