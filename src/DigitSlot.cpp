@@ -1,33 +1,6 @@
 #include "DigitSlot.h"
 #include "errorh.h"
 
-const DigitSlotState DigitSlotStateMachine::_kTransitionTable[(unsigned int)DigitSlotState::Count][(
-    unsigned int)DigitSlotEvent::Count] = {
-    // clang-format off
-    //           Event=> BeginTransition                 SweepComplete               CompleteAcknowledged
-    /*          Idle */  {DigitSlotState::Transitioning, DigitSlotState::Idle,       DigitSlotState::Idle},
-    /* Transitioning */  {DigitSlotState::Transitioning, DigitSlotState::Complete,   DigitSlotState::Transitioning},
-    /*      Complete */  {DigitSlotState::Transitioning, DigitSlotState::Complete,   DigitSlotState::Idle},
-    // clang-format on
-};
-
-bool DigitSlotStateMachine::handleEvent(DigitSlotEvent event) {
-   EHInitialize;
-   unsigned int uiState = (unsigned int)_currentState;
-   unsigned int uiEvent = (unsigned int)event;
-
-   EHRaiseErrorWhen(uiState >= (unsigned int)DigitSlotState::Count ||
-                        uiEvent >= (unsigned int)DigitSlotEvent::Count,
-                    EH_PACK_INT16_TO_LONG(uiState, uiEvent));
-   _currentState = _kTransitionTable[uiState][uiEvent];
-
-End:
-   if (EHErrorRaised) {
-      EHEmitMsgDebug
-   }
-   return EHIsSuccess;
-}
-
 bool DigitSlot::initialize(unsigned int uiInitialValue) {
    EHInitialize;
    bool              fSuccess    = false;

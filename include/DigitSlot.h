@@ -1,6 +1,7 @@
 #ifndef DIGIT_SLOT_H
 #define DIGIT_SLOT_H
 
+#include "DigitSlotStateMachine.h"
 #include "DigitSlotTransitionStateMachine.h"
 #include "DigitTransitionSweep.h"
 #include "DisplaySurface.h"
@@ -8,34 +9,6 @@
 #include "PixelSweeper.h"
 #include "Point.h"
 #include "PointPath.h"
-
-enum class DigitSlotState {
-   Idle = 0,
-   Transitioning,
-   Complete,
-   Count,
-};
-
-enum class DigitSlotEvent {
-   BeginTransition = 0,
-   SweepComplete,
-   CompleteAcknowledged,
-   Count,
-};
-
-class DigitSlotStateMachine {
- private:
-   static const DigitSlotState _kTransitionTable[(unsigned int)DigitSlotState::Count]
-                                                [(unsigned int)DigitSlotEvent::Count];
-
-   DigitSlotState _currentState;
-
- public:
-   DigitSlotStateMachine() : _currentState(DigitSlotState::Idle) {}
-
-   bool           handleEvent(DigitSlotEvent event);
-   DigitSlotState getCurrentState() const { return _currentState; }
-};
 
 class DigitSlot {
  private:
@@ -60,7 +33,8 @@ class DigitSlot {
        _iDigitProvider(iDigitProvider),
        _digitTransitionSweep(displaySurface, initialGlyph, ptOrigin),
        _pixelSweeper(pointPath, uiSweepRateMs, _digitTransitionSweep),
-       _stateMachine() {}
+       _stateMachine(),
+       _transitionStateMachine() {}
 
    bool initialize(unsigned int uiInitialValue);
    bool beginTransitionTo(unsigned int uiNewValue);
