@@ -59,13 +59,18 @@ End:
 }
 
 bool PixelGlyph::drawPixelForPoint(DisplaySurface& displaySurface, const Point& ptLocal,
-                                   const Point& ptOrigin) const {
+                                   const Point& ptOrigin, const CRGB* pOverrideColor) const {
    EHInitialize;
    bool fSuccess;
    CRGB color;
 
-   fSuccess = getPixelColorForPoint(displaySurface, ptLocal, color);
-   EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(ptLocal.getX(), ptLocal.getY()));
+   if (nullptr != pOverrideColor) {
+      color = *pOverrideColor;
+   } else {
+      fSuccess = getPixelColorForPoint(displaySurface, ptLocal, color);
+      EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(ptLocal.getX(), ptLocal.getY()));
+   }
+
    {
       Point ptDisplay = ptLocal + ptOrigin;
       fSuccess        = displaySurface.setPixelColor(ptDisplay.getX(), ptDisplay.getY(), color);

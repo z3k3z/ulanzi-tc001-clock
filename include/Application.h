@@ -15,7 +15,7 @@ class Application {
    static constexpr unsigned int _kMatrixWidth     = 32;
    static constexpr unsigned int _kMatrixHeight    = 8;
    static constexpr unsigned int _kNumDigits       = 4;
-   static constexpr unsigned int _kSweepRateMs     = 10;
+   static constexpr unsigned int _kSweepRateMs     = 15;
    static constexpr unsigned int _kInitialDigitVal = 0;
 
    CoordinateMapper      _coordinateMapper;

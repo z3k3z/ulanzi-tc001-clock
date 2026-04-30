@@ -26,6 +26,6 @@ class PixelGlyph {
    bool getPixelColorForPoint(DisplaySurface& displaySurface, const Point& ptLocal,
                               CRGB& crgbPixelColor) const;
    bool drawPixelForPoint(DisplaySurface& displaySurface, const Point& ptLocal,
-                          const Point& ptOrigin) const;
+                          const Point& ptOrigin, const CRGB* pOverrideColor = nullptr) const;
 };
 #endif

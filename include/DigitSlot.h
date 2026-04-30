@@ -1,6 +1,7 @@
 #ifndef DIGIT_SLOT_H
 #define DIGIT_SLOT_H
 
+#include "DigitSlotTransitionStateMachine.h"
 #include "DigitTransitionSweep.h"
 #include "DisplaySurface.h"
 #include "IDigitProvider.h"
@@ -38,14 +39,15 @@ class DigitSlotStateMachine {
 
 class DigitSlot {
  private:
-   Point                 _ptOrigin;
-   unsigned int          _uiCurrentValue;
-   unsigned int          _uiTargetValue;
-   DisplaySurface&       _displaySurface;
-   const IDigitProvider& _iDigitProvider;
-   DigitTransitionSweep  _digitTransitionSweep;
-   PixelSweeper          _pixelSweeper;
-   DigitSlotStateMachine _stateMachine;
+   Point                           _ptOrigin;
+   unsigned int                    _uiCurrentValue;
+   unsigned int                    _uiTargetValue;
+   DisplaySurface&                 _displaySurface;
+   const IDigitProvider&           _iDigitProvider;
+   DigitTransitionSweep            _digitTransitionSweep;
+   PixelSweeper                    _pixelSweeper;
+   DigitSlotStateMachine           _stateMachine;
+   DigitSlotTransitionStateMachine _transitionStateMachine;
 
  public:
    DigitSlot(DisplaySurface& displaySurface, const IDigitProvider& iDigitProvider,

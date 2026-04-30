@@ -4,10 +4,10 @@
 const DigitSlotState DigitSlotStateMachine::_kTransitionTable[(unsigned int)DigitSlotState::Count][(
     unsigned int)DigitSlotEvent::Count] = {
     // clang-format off
-       //           Event=> BeginTransition                 SweepComplete               CompleteAcknowledged
-       /*          Idle */  {DigitSlotState::Transitioning, DigitSlotState::Idle,       DigitSlotState::Idle},
-       /* Transitioning */  {DigitSlotState::Transitioning, DigitSlotState::Complete,   DigitSlotState::Transitioning},
-       /*      Complete */  {DigitSlotState::Transitioning, DigitSlotState::Complete,   DigitSlotState::Idle},
+    //           Event=> BeginTransition                 SweepComplete               CompleteAcknowledged
+    /*          Idle */  {DigitSlotState::Transitioning, DigitSlotState::Idle,       DigitSlotState::Idle},
+    /* Transitioning */  {DigitSlotState::Transitioning, DigitSlotState::Complete,   DigitSlotState::Transitioning},
+    /*      Complete */  {DigitSlotState::Transitioning, DigitSlotState::Complete,   DigitSlotState::Idle},
     // clang-format on
 };
 
@@ -62,13 +62,15 @@ bool DigitSlot::beginTransitionTo(unsigned int uiNewValue) {
 
       _uiTargetValue = uiNewValue;
 
-      _digitTransitionSweep.initialize(*pPixelGlyph, _ptOrigin);
+      _digitTransitionSweep.initialize(*pPixelGlyph, _ptOrigin, DigitTransitionSweepMode::Erase);
 
       fSuccess = _pixelSweeper.restart();
       EHRaiseErrorWhenNotSuccess(fSuccess, uiNewValue);
 
       fSuccess = _stateMachine.handleEvent(DigitSlotEvent::BeginTransition);
-      EHRaiseErrorWhenNotSuccess(fSuccess, (unsigned int)DigitSlotEvent::BeginTransition);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+      fSuccess = _transitionStateMachine.handleEvent(DigitSlotTransitionEvent::Begin);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
    }
 
 End:
@@ -88,10 +90,24 @@ bool DigitSlot::handleTick() {
       EHRaiseErrorWhenNotSuccess(fSuccess, _uiTargetValue);
 
       if (_pixelSweeper.getIsDone()) {
-         _uiCurrentValue = _uiTargetValue;
+         fSuccess = _transitionStateMachine.handleEvent(DigitSlotTransitionEvent::SweepComplete);
+         EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+         switch (_transitionStateMachine.getCurrentState()) {
+         case DigitSlotTransitionState::Done:
+            _uiCurrentValue = _uiTargetValue;
 
-         fSuccess = _stateMachine.handleEvent(DigitSlotEvent::SweepComplete);
-         EHRaiseErrorWhenNotSuccess(fSuccess, (unsigned int)DigitSlotEvent::SweepComplete);
+            fSuccess = _stateMachine.handleEvent(DigitSlotEvent::SweepComplete);
+            EHRaiseErrorWhenNotSuccess(fSuccess, (unsigned int)DigitSlotEvent::SweepComplete);
+            break;
+         case DigitSlotTransitionState::Revealing:
+            _digitTransitionSweep.setMode(DigitTransitionSweepMode::Reveal);
+            fSuccess = _pixelSweeper.restart();
+            EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+            break;
+         default:
+            EHRaiseError(_transitionStateMachine.getCurrentState());
+            break;
+         }
       }
       break;
 

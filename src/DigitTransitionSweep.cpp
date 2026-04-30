@@ -3,10 +3,13 @@
 
 bool DigitTransitionSweep::leavingFromPoint(const Point& point) {
    EHInitialize;
-   bool fSuccess = false;
+   bool  fSuccess  = false;
+   CRGB  crgbBlack = CRGB::Black;
+   CRGB* color     = (DigitTransitionSweepMode::Erase == _mode) ? &crgbBlack : nullptr;
 
    EHRaiseErrorWhen(nullptr == _pToGlyph, 0);
-   fSuccess = _pToGlyph->drawPixelForPoint(_displaySurface, point, _ptOrigin);
+
+   fSuccess = _pToGlyph->drawPixelForPoint(_displaySurface, point, _ptOrigin, color);
    EHRaiseErrorWhenNotSuccess(fSuccess, EH_PACK_INT16_TO_LONG(point.getX(), point.getY()));
 
 End:
