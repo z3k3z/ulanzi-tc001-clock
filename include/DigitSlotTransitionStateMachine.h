@@ -1,6 +1,8 @@
 #ifndef DIGIT_SLOT_TRANSITION_STATE_MACHINE_H
 #define DIGIT_SLOT_TRANSITION_STATE_MACHINE_H
 
+#include "TableDrivenStateMachine.h"
+
 enum class DigitSlotTransitionState {
    Idle = 0,
    Erasing,
@@ -21,7 +23,10 @@ class DigitSlotTransitionStateMachine {
    static const DigitSlotTransitionState _kTransitionTable[(
        unsigned int)DigitSlotTransitionState::Count][(unsigned int)DigitSlotTransitionEvent::Count];
 
-   DigitSlotTransitionState _currentState;
+   TableDrivenStateMachine<DigitSlotTransitionState, DigitSlotTransitionEvent,
+                           (unsigned int)DigitSlotTransitionState::Count,
+                           (unsigned int)DigitSlotTransitionEvent::Count>
+       _stateMachine;
 
  public:
    DigitSlotTransitionStateMachine();

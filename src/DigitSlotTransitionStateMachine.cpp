@@ -1,5 +1,4 @@
 #include "DigitSlotTransitionStateMachine.h"
-#include "errorh.h"
 
 const DigitSlotTransitionState DigitSlotTransitionStateMachine::_kTransitionTable[(
     unsigned int)DigitSlotTransitionState::Count][(unsigned int)DigitSlotTransitionEvent::Count] = {
@@ -13,26 +12,13 @@ const DigitSlotTransitionState DigitSlotTransitionStateMachine::_kTransitionTabl
 };
 
 DigitSlotTransitionStateMachine::DigitSlotTransitionStateMachine() :
-    _currentState(DigitSlotTransitionState::Idle) {
+    _stateMachine(_kTransitionTable, DigitSlotTransitionState::Idle) {
 }
 
 bool DigitSlotTransitionStateMachine::handleEvent(DigitSlotTransitionEvent event) {
-   EHInitialize;
-   unsigned int uiState = (unsigned int)_currentState;
-   unsigned int uiEvent = (unsigned int)event;
-
-   EHRaiseErrorWhen((uiState >= (unsigned int)DigitSlotTransitionState::Count) ||
-                        (uiEvent >= (unsigned int)DigitSlotTransitionEvent::Count),
-                    EH_PACK_INT16_TO_LONG(uiState, uiEvent));
-   _currentState = _kTransitionTable[uiState][uiEvent];
-
-End:
-   if (EHErrorRaised) {
-      EHEmitMsgDebug;
-   }
-   return EHIsSuccess;
+   return _stateMachine.handleEvent(event);
 }
 
 DigitSlotTransitionState DigitSlotTransitionStateMachine::getCurrentState() const {
-   return _currentState;
+   return _stateMachine.getCurrentState();
 }
