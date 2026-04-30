@@ -11,8 +11,6 @@ This project is intentionally being developed in a craft-oriented way similar to
 - avoidance of premature abstraction
 - strong continuity discipline to prevent architectural drift after chat loss
 
-The project is not being optimized for the shortest route to a finished clock. It is being developed as a durable embedded rendering architecture with clear ownership and incremental device validation.
-
 ## Platform Choice
 Arduino-on-ESP32 via PlatformIO was deliberately chosen because it minimizes irrelevant complexity while preserving full control of rendering:
 - direct WS2812 matrix access
@@ -48,19 +46,6 @@ Resolution:
 - range-based `for` preferred for collections when index is not semantically required
 - retain C compatibility where practical in low-level utilities
 - no unbound globals when ownership can be expressed cleanly
-- avoid premature abstraction, but introduce ownership boundaries when they prevent drift
-
-## State Machine Design Pattern
-For stateful components, prefer a table-driven state machine:
-- define an enumerated state type
-- define an enumerated event type
-- hold current state privately
-- expose `handleEvent(event)`
-- expose one `getCurrentState() const`
-- represent transitions as a table with rows for current states and columns for events
-- place the transition table in the `.cpp` file, not inline in the header
-
-This pattern consolidates the state transition diagram into a single defined location and avoids state behavior being implied by scattered branch logic.
 
 ## Error Handling Architecture
 Adopted project-wide:
@@ -80,13 +65,22 @@ Pattern:
 - collect file / line / packed context
 - branch to epilogue
 - caller decides severity
-This is intentionally lightweight and uniform to reduce visual cyclomatic complexity.
-Packed long context commonly stores:
-- two 16-bit packed values
-- coordinate pairs
-- small state payloads
 
-Debug emission is intentionally suppressible by framework flag.
+## State Management Pattern (Go-Forward Rule)
+Stateful components should preferentially use table-driven state machines:
+- enumerated states
+- enumerated events
+- private current state member
+- single `handleEvent(event)` entry point
+- single `getCurrentState()` query
+- one transition table as authoritative STD representation
+
+Transition tables should be declared in headers and defined in `.cpp` files.
+
+Purpose:
+- consolidate STD into one defined location
+- reduce distributed conditional logic
+- simplify audit and testing
 
 ## Current Core Architecture
 
@@ -96,39 +90,19 @@ Owns top-level composition:
 - LEDBuffer
 - DisplaySurface
 - IDigitProvider reference
-- DigitSlot array
+- 4 DigitSlot instances
 - ValueTracker
 
 Responsibilities:
 - initialize hardware
-- configure display theme through DisplaySurface
-- initialize four DigitSlot instances
+- initialize slots
 - obtain current time surrogate
-- detect changed digits through ValueTracker
-- tell changed DigitSlots to begin transitions
-- tick all DigitSlots
-- flush DisplaySurface when the display is dirty
-
-Important current direction:
-- Application should remain orchestration only
-- Application should not own per-digit visual lifecycle details
-- Application should not own ColorManager directly
-
-### CoordinateMapper
-Maps Cartesian `(x,y)` into serpentine WS2812 index:
-- 32x8 matrix
-- alternating row direction
-- bounds checking via status return
-
-### LEDBuffer
-Encapsulates LED storage:
-- owns CRGB array
-- exposes buffer + count
-
-FastLED initialization consumes LEDBuffer storage.
+- detect changed digits
+- dispatch slot transitions
+- flush display only when dirty
 
 ### DisplaySurface
-Owns rendering boundary above FastLED and now owns the single ColorManager associated with the physical surface.
+Owns rendering boundary above FastLED.
 
 Responsibilities:
 - initialize FastLED
@@ -136,30 +110,19 @@ Responsibilities:
 - get pixel color
 - clear buffer
 - show buffer
-- expose `getColorManager()` for semantic color lookup
+- own ColorManager
 
-Important rule:
-- `show()` remains separate from mutation
-- lower layers do not flush automatically
-- FastLED remains hidden beneath DisplaySurface
-- render clients should generally receive `DisplaySurface&` rather than both `DisplaySurface&` and `ColorManager&`
-
-FastLED brightness is initialized from the surface-owned ColorManager.
+Important ownership rule:
+- ColorManager now belongs exclusively to DisplaySurface
+- render clients obtain semantic colors through DisplaySurface
 
 ### ColorManager
 Theme-driven semantic color provider owned by DisplaySurface.
-
-Current themes stored tabularly:
-- RedLed
-- TransitYellowGreen
-- AgedPhosphor
-- WarmBusMarquee
 
 Provides:
 - active color
 - inactive color
 - transition cursor color
-- global brightness
 
 Current settled theme:
 - WarmBusMarquee
@@ -167,98 +130,46 @@ Current settled theme:
 Long-term goal:
 semantic color + brightness coordination.
 
-## Geometry / Traversal Utilities
-
-### Point
-- x/y coordinate holder
-- operator+
-- operator=
-
-### Rectangle
-- origin + extent
-
-### PointIterator
-Traverses rectangle:
-- XMajor
-- YMajor
-
-### PointPath
-Static ordered point collection.
-
-### PointPathIterator
-Traverses arbitrary point arrays.
-
-This supports arbitrary sweep ordering independent of rectangle traversal.
-
-## PixelGlyph
-Current digit renderer:
-- bit-row encoded glyphs
-- active/inactive pixels resolved through DisplaySurface's ColorManager
-- traversal abstraction separated from glyph semantics
-
-Provides:
-- `draw(DisplaySurface&, ...)`
-- `drawPixelForPoint(DisplaySurface&, ...)`
-- `getPixelColorForPoint(DisplaySurface&, ...)`
-
-Important ownership rule:
-- PixelGlyph does not own color policy
-- PixelGlyph determines whether a glyph pixel is active or inactive
-- DisplaySurface supplies the ColorManager used to convert active/inactive semantics into CRGB values
-
-Glyph definitions are no longer owned by Application.
-
-## Digit Provider Architecture
+## Digit Architecture
 
 ### IDigitProvider
 Abstract interface:
 - supplies glyph by numeric digit
 
-Contract:
-- `bool getDigitFor(unsigned int uiDigit, const PixelGlyph*& pPixelGlyph) const`
-
 ### FiveBySevenDigitProvider
-Owns digits 0 through 9.
+Previous known-good glyph source.
+- width = 5
+- height = 7
+- retained as a fallback / comparison provider rather than deleted
 
-This is now the authoritative glyph source.
+### FiveByEightDigitProvider
+Current active digit provider:
+- width = 5
+- height = 8
+- uses the full vertical height of the 32x8 display
+- deployed and visually verified on device
+- fits the intended retro / bus-marquee aesthetic better than initially expected
 
-## DigitSlot Architecture
-DigitSlot is now the owner of one digit's visual lifecycle.
+The prior FiveBySevenDigitProvider should remain available as a fallback / comparison provider.
 
-Responsibilities:
-- hold digit origin
-- hold current digit value
-- hold target digit value
-- own DigitTransitionSweep
-- own PixelSweeper
-- initialize its displayed digit
-- begin a transition to a new digit value
-- advance transition work during `handleTick()`
-- expose current state through `getCurrentState() const`
+Current sweep path for digit transitions is now 5x8:
+- 40 points
+- includes row 7
+- replaces the earlier 5x7 / 35-point transition path for the active provider
 
-DigitSlot prevents Application from becoming the owner of transition mechanics.
+Design implication:
+- future transition work should assume full-height glyphs unless explicitly testing an alternate provider
+- avoid hardening provider-specific geometry into unrelated classes
 
-Current DigitSlot state model:
-- Idle
-- Transitioning
-- Complete
-- Count sentinel
+## PixelGlyph
+Current digit renderer:
+- bit-row encoded glyphs
+- active/inactive pixels via DisplaySurface-owned ColorManager
 
-Current DigitSlot event model:
-- BeginTransition
-- SweepComplete
-- CompleteAcknowledged
-- Count sentinel
-
-State transitions are represented in a transition table in `DigitSlot.cpp`.
-
-Design intent:
-- ValueTracker remains semantic numeric state
-- DigitSlot owns visual digit state
-- Application coordinates between them without owning transition internals
-
-Known minor design compromise:
-- DigitTransitionSweep currently requires a glyph at construction, so DigitSlot construction may use an initial/fallback glyph. This can be cleaned later by allowing DigitTransitionSweep to be constructed without an active target glyph and initialized before use.
+Provides:
+- `draw()`
+- `drawPixelForPoint()`
+- `getPixelColorForPoint()`
 
 ## Sweep Architecture
 
@@ -269,37 +180,57 @@ Responsibilities:
 - timing
 - path stepping
 - listener dispatch
-- restartable sweep lifecycle
+- restartable traversal
 
-No rendering policy embedded.
-
-Current important behavior:
-- `restart()` resets path iterator, done flag, and last action context
-- listener remains a stable reference for the lifetime of the sweeper
-- the listener is not expected to change between sweeps
-- the extra leave step after the final landed point is semantically important because it restores the final cursor point
-
-### ISweepListener
-Virtual interface:
-- `landingOnPoint()`
-- `leavingFromPoint()`
-
-### SimpleSweep
-Direct cursor sweep implementation.
-
-Current behavior:
-- caches the color under the cursor when landing
-- restores the cached color when leaving
-- obtains transition cursor color through DisplaySurface's ColorManager
+Listener identity is fixed for sweeper lifetime.
 
 ### DigitTransitionSweep
-Current digit transition implementation:
-- `landingOnPoint()` draws the transition cursor
-- `leavingFromPoint()` restores the corresponding pixel from the target glyph
-- obtains transition cursor color through DisplaySurface's ColorManager
-- no longer receives ColorManager separately
+Current active digit transition:
+- leaves old glyph
+- lands new glyph
 
-Transition is functioning on device.
+### Planned Investigation: Double-Wipe Transition
+Desired alternate transition:
+- vertical or horizontal band cursor
+- outbound pass erases current digit
+- return pass reveals target digit
+
+Architectural implication:
+- future transition ownership should avoid hard-coding one sweep model too deeply into DigitSlot
+- likely future transition behavior boundary if multiple styles stabilize
+
+## DigitSlot
+DigitSlot now owns per-digit behavior:
+- current value
+- target value
+- render origin
+- DigitTransitionSweep
+- PixelSweeper
+- internal state machine
+
+Current states:
+- Idle
+- Transitioning
+- Complete
+
+State transitions use table-driven STD.
+
+DigitSlot is now the correct locus for future per-digit behavior expansion.
+
+### Future Slot Position Consideration
+Startup animation introduces likely need for:
+- home origin
+- current animated origin
+
+Meaning current origin should be thought of as render position, not permanent identity.
+
+## Planned Startup Animation
+Desired behavior:
+- on startup, digit slots slide into place one at a time
+- entry may come from left or right
+
+Architectural implication:
+- slot origin likely becomes mutable during startup sequence
 
 ## ValueTracker
 Numeric state tracker.
@@ -312,132 +243,46 @@ Responsibilities:
 Current digit width:
 - 4 digits
 
-Used for:
-- temporary clock surrogate
-- future HHMM clock logic
-
-Current query model:
-- digit offset counted from right
-
-Current implementation direction:
-- when an update changes the value, both previous and current values are formatted once into zero-padded strings
-- per-digit comparison uses the cached text representation
-- digit extraction uses character conversion, e.g. `'5' - '0'`
-
-Future pressure point:
-- ValueTracker currently tracks semantic previous/current value
-- if visual transitions can overlap new semantic updates, the system may eventually need to distinguish semantic value from displayed/committed visual value
-- do not move visual transition state into ValueTracker
-
 ## Current Runtime Behavior
-Application renders four digits through DigitSlot instances.
-
-Value source currently:
+Current visible time surrogate:
 - HMMT
 where:
 - H = low hour digit
 - MM = minute
-- T = high digit of seconds / tens of seconds
+- T = tens of seconds
 
-This is intentionally sufficient for visible transition testing.
+Used intentionally for visible transition testing.
 
-Current behavior:
-- Application obtains HMMT value
-- ValueTracker identifies changed digit offsets
-- Application calls `beginTransitionTo()` on changed DigitSlots
-- Application ticks all DigitSlots
-- DisplaySurface is shown when display work occurred
-- digit transitions are functioning on device
+Current active display configuration:
+- four 5x8 digits
+- full-height glyph rendering on the 32x8 matrix
+- 5x8 random transition path
+- DigitSlot-driven per-digit transition lifecycle
 
-## Brightness / Theme Direction
-Current observed tuning:
-- global brightness increased to improve inactive field visibility
-- inactive field kept dim but visible
+## Planned Time Source Evolution
+Current `_getTimeAsInt()` remains temporary.
 
-Long-term architectural goal:
-ColorManager should eventually coordinate:
-- active color
-- inactive color
-- global brightness
-- ambient brightness adaptation
+Future requirement:
+- local network time sync
+- minimal user setup
+- credential sensitivity awareness
 
-Because ColorManager now belongs to DisplaySurface, future brightness/theme coordination should be implemented at or below the DisplaySurface level rather than in Application.
+Likely future subsystems:
+- TimeProvider
+- NetworkManager
+- CredentialStore
 
-## Current Architecture Checkpoint
-The project has now crossed from a procedural render loop into slot-owned digit rendering:
-- Application orchestrates
-- DisplaySurface owns hardware boundary and color policy
-- PixelGlyph owns glyph semantics
-- DigitSlot owns digit visual lifecycle
-- PixelSweeper owns traversal timing
-- DigitTransitionSweep owns transition pixel behavior
-- ValueTracker owns semantic numeric change detection
+Possible mechanisms:
+- Wi-Fi credential persistence in ESP32 NVS/preferences
+- NTP/SNTP sync
+- graceful offline fallback
 
-This is a major architecture checkpoint and should be treated as durable.
+## Design Discipline Going Forward
+Before adding new helpers or ownership:
+ask whether the decision freezes one of the known future directions:
+- alternate transitions
+- mutable slot position
+- larger glyph geometry
+- network time source layering
 
-## Immediate Next Direction
-The most natural next directions are now:
-
-### Carry / rollover choreography
-Introduce right-to-left sequencing so that digit transitions can behave more like mechanical or transport-style rollovers.
-
-Potential question:
-- should carry sequencing be owned by Application, a future coordinator, or a higher-level multi-digit display object?
-
-Avoid letting Application accumulate too much choreography logic.
-
-### Digit semantic identity
-Digits may eventually need roles such as:
-- HourLow
-- MinuteHigh
-- MinuteLow
-- SecondsTens / temporary test slot
-
-This could support cleaner carry logic and future clock formatting.
-
-### DigitSlot constructor cleanup
-Remove the need for a constructor-time placeholder glyph by making DigitTransitionSweep default-initializable or safely uninitialized until `initialize()` is called.
-
-### Sweep profile ownership
-The current random 5x7 path still lives near Application. Eventually this path likely belongs in:
-- a sweep profile
-- a transition policy object
-- or a reusable visual behavior definition
-
-Do not move it prematurely unless it starts cluttering Application or multiple transition styles emerge.
-
-## Future Architecture Candidates
-
-### Tick Listener System
-Likely needed later:
-- independently registered animation actors
-- fades
-- digit transitions
-- timed visual effects
-
-DigitSlot currently reduces immediate need for a generalized tick listener system, but the concept remains likely if multiple independent visual actors emerge.
-
-### MultiDigitDisplay / ClockDisplay Coordinator
-Possible future layer above DigitSlot:
-- owns four or more DigitSlots
-- understands digit roles
-- coordinates carry/ripple timing
-- shields Application from multi-digit choreography
-
-This may become preferable if Application begins to contain sequencing policy.
-
-### Sound
-Possible future ambient sweep sound:
-- speaker confirmed usable
-- likely sparse event-based usage only
-
-Avoid coupling sound directly into PixelSweeper. Prefer an event/listener or higher-level visual/audio coordinator if sound is revisited.
-
-### Seasonal Background Themes
-Still parked:
-- July 4th
-- Christmas twinkle
-
-May later be rejected if visually noisy.
-
-If implemented, background effects should respect DisplaySurface/ColorManager ownership and avoid interfering with digit readability.
+If yes, bias toward neutral ownership and naming.

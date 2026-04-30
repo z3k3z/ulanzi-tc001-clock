@@ -1,7 +1,7 @@
 #include "Application.h"
-#include "FiveBySevenDigitProvider.h"
+#include "FiveByEightDigitProvider.h"
 
-static IDigitProvider* gIDIgitProvider = new FiveBySevenDigitProvider();
+static IDigitProvider* gIDIgitProvider = new FiveByEightDigitProvider();
 static Application     gApplication(*gIDIgitProvider);
 
 void setup() {
