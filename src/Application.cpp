@@ -30,11 +30,12 @@ Application::Application(const IDigitProvider& iDigitProvider) :
                   Point(22, 0), _getInitialGlyph(_iDigitProvider)),
         DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x8Random, _kSweepRateMs,
                   Point(15, 0), _getInitialGlyph(_iDigitProvider)),
-        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x8Random, _kSweepRateMs, Point(8, 0),
+        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x8Random, _kSweepRateMs, Point(7, 0),
                   _getInitialGlyph(_iDigitProvider)),
-        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x8Random, _kSweepRateMs, Point(1, 0),
+        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x8Random, _kSweepRateMs, Point(0, 0),
                   _getInitialGlyph(_iDigitProvider)),
     },
+    _colonSeparator(Point(13, 0), _kMatrixHeight, _kColonBlinkIntervalMs),
     _valueTracker() {
 
    _valueTracker.setInitialValue(0);
@@ -56,6 +57,9 @@ void Application::initialize() {
    fSuccess = _initializeDigitSlots();
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
+   fSuccess = _colonSeparator.initialize(_displaySurface);
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+
    _displaySurface.show();
 
    Serial.println("Application initialized");
@@ -68,10 +72,11 @@ End:
 
 void Application::tick() {
    EHInitialize;
-   bool fSuccess      = false;
-   bool fHasChanged   = false;
-   bool fDisplayDirty = false;
-   int  iTimeValue    = 0;
+   bool fSuccess           = false;
+   bool fHasChanged        = false;
+   bool fDisplayDirty      = false;
+   bool fColonDisplayDirty = false;
+   int  iTimeValue         = 0;
 
    fSuccess = _getTimeAsInt(iTimeValue);
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
@@ -105,6 +110,10 @@ void Application::tick() {
          fDisplayDirty = true;
       }
    }
+
+   fSuccess = _colonSeparator.handleTick(_displaySurface, fColonDisplayDirty);
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+   fDisplayDirty = fDisplayDirty || fColonDisplayDirty;
 
    if (fDisplayDirty) {
       _displaySurface.show();
