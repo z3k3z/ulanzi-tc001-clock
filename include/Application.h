@@ -7,6 +7,7 @@
 #include "DisplaySurface.h"
 #include "FiveBySevenDigitProvider.h"
 #include "LEDBuffer.h"
+#include "SerialTimeSyncProvider.h"
 #include "ValueTracker.h"
 #include <Arduino.h>
 
@@ -18,15 +19,16 @@ class Application {
    static constexpr unsigned int _kNumDigits            = 4;
    static constexpr unsigned int _kSweepRateMs          = 15;
    static constexpr unsigned int _kInitialDigitVal      = 0;
-   static constexpr unsigned int _kColonBlinkIntervalMs = 500;
+   static constexpr unsigned int _kColonBlinkIntervalMs = 1000;
 
-   CoordinateMapper      _coordinateMapper;
-   LEDBuffer             _ledBuffer;
-   DisplaySurface        _displaySurface;
-   const IDigitProvider& _iDigitProvider;
-   DigitSlot             _digitSlots[_kNumDigits];
-   ColonSeparator        _colonSeparator;
-   ValueTracker          _valueTracker;
+   CoordinateMapper       _coordinateMapper;
+   LEDBuffer              _ledBuffer;
+   DisplaySurface         _displaySurface;
+   const IDigitProvider&  _iDigitProvider;
+   DigitSlot              _digitSlots[_kNumDigits];
+   ColonSeparator         _colonSeparator;
+   ValueTracker           _valueTracker;
+   SerialTimeSyncProvider _serialTimeSyncProvider;
 
  public:
    Application(const IDigitProvider& iDigitProvider);

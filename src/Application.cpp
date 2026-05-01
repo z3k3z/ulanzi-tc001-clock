@@ -36,7 +36,8 @@ Application::Application(const IDigitProvider& iDigitProvider) :
                   _getInitialGlyph(_iDigitProvider)),
     },
     _colonSeparator(Point(13, 0), _kMatrixHeight, _kColonBlinkIntervalMs),
-    _valueTracker() {
+    _valueTracker(),
+    _serialTimeSyncProvider() {
 
    _valueTracker.setInitialValue(0);
 }
@@ -49,6 +50,9 @@ void Application::initialize() {
    delay(500);
 
    pinMode(_kBuzzerPin, INPUT_PULLDOWN);
+
+   fSuccess = _serialTimeSyncProvider.initialize();
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
    _displaySurface.getColorManager().setTheme(ColorTheme::WarmBusMarquee);
    _displaySurface.initialize();
@@ -78,6 +82,11 @@ void Application::tick() {
    bool fColonDisplayDirty = false;
    int  iTimeValue         = 0;
 
+   {
+      bool fTimeWasUpdated = false;
+      fSuccess             = _serialTimeSyncProvider.handleTick(fTimeWasUpdated);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+   }
    fSuccess = _getTimeAsInt(iTimeValue);
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
@@ -146,10 +155,10 @@ bool Application::_getTimeAsInt(int& iValue) {
    struct tm tmNow;
    localtime_r(&now, &tmNow);
 
-   int iHour    = tmNow.tm_hour % 10;
+   int iHour    = tmNow.tm_hour;
    int iMinute  = tmNow.tm_min;
-   int iSecondT = tmNow.tm_sec / 10;
-   iValue       = (iHour * 1000) + (iMinute * 10) + iSecondT;
+   int iSecondT = 0;
+   iValue       = (iHour * 100) + (iMinute * 1) + iSecondT;
 
    return true;
 }
