@@ -16,12 +16,12 @@ const uint8_t FiveByEightDigitProvider::_kDigit0Rows[_kGlyphHeight] = {
 const uint8_t FiveByEightDigitProvider::_kDigit1Rows[_kGlyphHeight] = {
       0b00100,
       0b01100,
-      0b10100,
       0b00100,
       0b00100,
       0b00100,
       0b00100,
-      0b11111,
+      0b00100,
+      0b01110,
 };
 
 const uint8_t FiveByEightDigitProvider::_kDigit2Rows[_kGlyphHeight] = {
