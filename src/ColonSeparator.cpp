@@ -6,7 +6,7 @@ bool ColonSeparator::initialize(DisplaySurface& displaySurface) {
    EHInitialize;
    bool fSuccess = false;
 
-   _fIsVisible      = true;
+   _fIsDotActive    = true;
    _fHasTickContext = false;
    _ulLastToggleMs  = 0;
 
@@ -31,7 +31,7 @@ bool ColonSeparator::handleTick(DisplaySurface& displaySurface, bool& fDisplayDi
       _ulLastToggleMs  = ulNowMs;
       _fHasTickContext = true;
    } else if ((ulNowMs - _ulLastToggleMs) >= _uiBlinkIntervalMs) {
-      _fIsVisible     = !_fIsVisible;
+      _fIsDotActive   = !_fIsDotActive;
       _ulLastToggleMs = ulNowMs;
 
       fSuccess = _render(displaySurface);
@@ -50,9 +50,14 @@ End:
 bool ColonSeparator::_render(DisplaySurface& displaySurface) {
    EHInitialize;
    bool fSuccess = false;
-   CRGB color    = _fIsVisible ? displaySurface.getColorManager().getActiveColor() : CRGB::Black;
 
    for (unsigned int ui = 0; ui < _uiHeight; ui++) {
+      bool fIsDotRow = ((2 == ui) || (5 == ui));
+
+      CRGB color = (fIsDotRow && _fIsDotActive)
+                       ? displaySurface.getColorManager().getActiveColor()
+                       : displaySurface.getColorManager().getInactiveColor();
+
       fSuccess = displaySurface.setPixelColor(_ptOrigin.getX(), _ptOrigin.getY() + (int)ui, color);
       EHRaiseErrorWhenNotSuccess(
           fSuccess, EH_PACK_INT16_TO_LONG(_ptOrigin.getX(), _ptOrigin.getY() + (int)ui));

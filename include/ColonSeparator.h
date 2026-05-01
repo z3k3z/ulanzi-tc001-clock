@@ -7,10 +7,10 @@
 class ColonSeparator {
  private:
    Point         _ptOrigin;
-   unsigned int _uiHeight;
-   unsigned int _uiBlinkIntervalMs;
-   bool         _fIsVisible;
-   bool         _fHasTickContext;
+   unsigned int  _uiHeight;
+   unsigned int  _uiBlinkIntervalMs;
+   bool          _fIsDotActive;
+   bool          _fHasTickContext;
    unsigned long _ulLastToggleMs;
 
  public:
@@ -18,10 +18,9 @@ class ColonSeparator {
        _ptOrigin(ptOrigin),
        _uiHeight(uiHeight),
        _uiBlinkIntervalMs(uiBlinkIntervalMs),
-       _fIsVisible(true),
+       _fIsDotActive(true),
        _fHasTickContext(false),
-       _ulLastToggleMs(0) {
-   }
+       _ulLastToggleMs(0) {}
 
    bool initialize(DisplaySurface& displaySurface);
    bool handleTick(DisplaySurface& displaySurface, bool& fDisplayDirty);
