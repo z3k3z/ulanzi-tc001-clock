@@ -9,6 +9,7 @@ bool DisplaySurface::initialize() {
 
    FastLED.addLeds<WS2812B, _kDisplayPin, GRB>(pLEDs, uiLedCount);
    FastLED.setBrightness(_colorManager.getGlobalBrightness());
+   FastLED.setDither(DISABLE_DITHER);
    FastLED.clear(true);
 
    return EHIsSuccess;
