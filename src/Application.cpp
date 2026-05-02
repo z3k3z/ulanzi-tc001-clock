@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "PointPath.h"
 #include "errorh.h"
+#include <WiFi.h>
 
 // clang-format off
 static const Point kPointPath5x8RandomPoints[] = {
@@ -171,6 +172,15 @@ bool Application::_getTimeAsInt(int& iValue) {
    iValue = (iHour12 * 100) + iMinute;
 
    return true;
+}
+
+bool Application::_configurePower() {
+   EHInitialize;
+
+   WiFi.mode(WIFI_OFF); // disable WIFI
+   btStop();            // disable bluetooth
+
+   return EHIsSuccess;
 }
 
 const PixelGlyph& Application::_getInitialGlyph(const IDigitProvider& iDigitProvider) {

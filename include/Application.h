@@ -40,6 +40,7 @@ class Application {
  private:
    bool _initializeDigitSlots();
    bool _getTimeAsInt(int& iValue);
+   bool _configurePower();
 
    static const PixelGlyph& _getInitialGlyph(const IDigitProvider& iDigitProvider);
 };
