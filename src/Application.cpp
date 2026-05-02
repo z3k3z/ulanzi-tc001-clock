@@ -20,11 +20,13 @@ static const PointPath kPointPath5x8Random(
 );
 // clang-format on
 
-Application::Application(const IDigitProvider& iDigitProvider) :
+Application::Application(const IDigitProvider& iDigitProvider,
+                         const IDigitProvider& iDigitProviderAlt) :
     _coordinateMapper(_kMatrixWidth, _kMatrixHeight),
     _ledBuffer(),
     _displaySurface(_coordinateMapper, _ledBuffer),
     _iDigitProvider(iDigitProvider),
+    _iDigitProviderAlt(iDigitProviderAlt),
     _digitSlots{
         DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x8Random, _kSweepRateMs,
                   Point(22, 0), _getInitialGlyph(_iDigitProvider)),
@@ -32,8 +34,8 @@ Application::Application(const IDigitProvider& iDigitProvider) :
                   Point(15, 0), _getInitialGlyph(_iDigitProvider)),
         DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x8Random, _kSweepRateMs, Point(7, 0),
                   _getInitialGlyph(_iDigitProvider)),
-        DigitSlot(_displaySurface, _iDigitProvider, kPointPath5x8Random, _kSweepRateMs, Point(0, 0),
-                  _getInitialGlyph(_iDigitProvider)),
+        DigitSlot(_displaySurface, _iDigitProviderAlt, kPointPath5x8Random, _kSweepRateMs,
+                  Point(0, 0), _getInitialGlyph(_iDigitProviderAlt)),
     },
     _colonSeparator(Point(13, 0), _kMatrixHeight, _kColonBlinkIntervalMs),
     _valueTracker(),
@@ -82,11 +84,13 @@ void Application::tick() {
    bool fColonDisplayDirty = false;
    int  iTimeValue         = 0;
 
+   // check if we have a pending time-sync event
    {
       bool fTimeWasUpdated = false;
       fSuccess             = _serialTimeSyncProvider.handleTick(fTimeWasUpdated);
       EHRaiseErrorWhenNotSuccess(fSuccess, 0);
    }
+
    fSuccess = _getTimeAsInt(iTimeValue);
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
@@ -155,10 +159,16 @@ bool Application::_getTimeAsInt(int& iValue) {
    struct tm tmNow;
    localtime_r(&now, &tmNow);
 
-   int iHour    = tmNow.tm_hour;
-   int iMinute  = tmNow.tm_min;
-   int iSecondT = 0;
-   iValue       = (iHour * 100) + (iMinute * 1) + iSecondT;
+   int iHour24 = tmNow.tm_hour;
+   int iMinute = tmNow.tm_min;
+
+   // convert to 12 hour format
+   int iHour12 = iHour24 % 12;
+   if (0 == iHour12) {
+      iHour12 = 12;
+   }
+
+   iValue = (iHour12 * 100) + iMinute;
 
    return true;
 }

@@ -25,13 +25,14 @@ class Application {
    LEDBuffer              _ledBuffer;
    DisplaySurface         _displaySurface;
    const IDigitProvider&  _iDigitProvider;
+   const IDigitProvider&  _iDigitProviderAlt;
    DigitSlot              _digitSlots[_kNumDigits];
    ColonSeparator         _colonSeparator;
    ValueTracker           _valueTracker;
    SerialTimeSyncProvider _serialTimeSyncProvider;
 
  public:
-   Application(const IDigitProvider& iDigitProvider);
+   Application(const IDigitProvider& iDigitProvider, const IDigitProvider& iDigitProviderAlt);
 
    void initialize();
    void tick();
