@@ -17,9 +17,18 @@ class BleTimeSyncProvider {
    time_t        _lastSyncEpoch;
    unsigned long _ulLastSyncMillis;
 
-   NimBLEServer*         _pServer;
-   NimBLEService*        _pService;
-   NimBLECharacteristic* _pTimeCharacteristic;
+   NimBLEServer*          _pServer;
+   NimBLEService*         _pService;
+   NimBLECharacteristic*  _pTimeCharacteristic;
+   NimBLEServerCallbacks* _pServerCallbacks;
+
+   class ServerCallbacks : public NimBLEServerCallbacks {
+    public:
+      void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
+         NimBLEDevice::startAdvertising();
+         Serial.println("BLE advertising restarted");
+      }
+   };
 
    class TimeSyncCharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     private:

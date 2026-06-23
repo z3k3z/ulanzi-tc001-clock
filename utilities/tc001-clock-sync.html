@@ -217,6 +217,10 @@ async function syncTime() {
 
     await characteristic.writeValue(bytes);
 
+    if (device && device.gatt.connected) {
+      device.gatt.disconnect();
+    }
+
     setStatus(
       "Status: sync sent\n" +
       payload + "\n\n" +

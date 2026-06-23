@@ -11,7 +11,8 @@ BleTimeSyncProvider::BleTimeSyncProvider() :
     _pServer(nullptr),
     _pService(nullptr),
     _pTimeCharacteristic(nullptr),
-    _timeSyncCallbacks(*this) {
+    _timeSyncCallbacks(*this),
+    _pServerCallbacks(new ServerCallbacks()) {
 }
 
 bool BleTimeSyncProvider::initialize() {
@@ -34,6 +35,8 @@ bool BleTimeSyncProvider::initialize() {
    EHRaiseErrorWhen(nullptr == _pTimeCharacteristic, 0);
 
    _pTimeCharacteristic->setCallbacks(&_timeSyncCallbacks);
+
+   _pServer->setCallbacks(_pServerCallbacks);
 
    _pService->start();
    Serial.println("BLE time sync advertising started");
