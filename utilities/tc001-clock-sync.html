@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TC001 Clock Sync</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, sans-serif;
+      background: #14110d;
+      color: #f7d27a;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top,
+          #302516 0%,
+          #14110d 55%,
+          #080706 100%);
+    }
+
+    main {
+      width: min(92vw, 420px);
+      border: 1px solid #6c5121;
+      border-radius: 18px;
+      padding: 28px;
+      background: rgba(20,17,13,.92);
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #c99738;
+      background: #2c2113;
+      color: #ffd36a;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #0d0b09;
+      font-family: Consolas, monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+<main>
+
+  <h1>TC001 Clock Sync</h1>
+
+  <p>
+    Connect to the clock and send the current system time.
+  </p>
+
+  <button id="connectButton">
+    Connect
+  </button>
+
+  <button id="syncButton" disabled>
+    Sync Time
+  </button>
+
+  <button id="disconnectButton" disabled>
+    Disconnect
+  </button>
+
+  <div id="status" class="status">
+Status: idle
+  </div>
+
+</main>
+
+<script>
+
+const SERVICE_UUID =
+  "7d9f1000-6f8d-4b8a-9d4a-0e4f7a001001";
+
+const CHARACTERISTIC_UUID =
+  "7d9f1001-6f8d-4b8a-9d4a-0e4f7a001001";
+
+let device = null;
+let server = null;
+let characteristic = null;
+
+const connectButton =
+  document.getElementById("connectButton");
+
+const syncButton =
+  document.getElementById("syncButton");
+
+const disconnectButton =
+  document.getElementById("disconnectButton");
+
+const statusElement =
+  document.getElementById("status");
+
+function setStatus(text) {
+  statusElement.textContent = text;
+}
+
+function setConnected(connected) {
+  connectButton.disabled = connected;
+  syncButton.disabled = !connected;
+  disconnectButton.disabled = !connected;
+}
+
+function handleDisconnect() {
+  characteristic = null;
+  server = null;
+  setConnected(false);
+
+  setStatus(
+    "Status: disconnected"
+  );
+}
+
+async function connect() {
+
+  try {
+
+    setStatus(
+      "Status: selecting device..."
+    );
+
+    device =
+      await navigator.bluetooth.requestDevice({
+        filters: [
+          {
+            namePrefix: "TC001"
+          }
+        ],
+        optionalServices: [
+          SERVICE_UUID
+        ]
+      });
+
+    device.addEventListener(
+      "gattserverdisconnected",
+      handleDisconnect
+    );
+
+    setStatus(
+      "Status: connecting..."
+    );
+
+    server =
+      await device.gatt.connect();
+
+    const service =
+      await server.getPrimaryService(
+        SERVICE_UUID
+      );
+
+    characteristic =
+      await service.getCharacteristic(
+        CHARACTERISTIC_UUID
+      );
+
+    setConnected(true);
+
+    setStatus(
+      "Status: connected\n" +
+      "Device: " + device.name
+    );
+
+  }
+  catch (error) {
+
+    setStatus(
+      "Status: connection failed\n" +
+      error
+    );
+
+  }
+}
+
+async function syncTime() {
+
+  try {
+
+    const epoch =
+      Math.floor(Date.now() / 1000);
+
+    const payload =
+      `TIME:${epoch}`;
+
+    const bytes =
+      new TextEncoder().encode(payload);
+
+    setStatus(
+      "Status: sending\n" +
+      payload
+    );
+
+    await characteristic.writeValue(bytes);
+
+    setStatus(
+      "Status: sync sent\n" +
+      payload + "\n\n" +
+      new Date(epoch * 1000)
+        .toLocaleString()
+    );
+
+  }
+  catch (error) {
+
+    setStatus(
+      "Status: sync failed\n" +
+      error
+    );
+
+  }
+}
+
+function disconnect() {
+
+  if (
+    device &&
+    device.gatt &&
+    device.gatt.connected
+  ) {
+    device.gatt.disconnect();
+  }
+}
+
+connectButton.addEventListener(
+  "click",
+  connect
+);
+
+syncButton.addEventListener(
+  "click",
+  syncTime
+);
+
+disconnectButton.addEventListener(
+  "click",
+  disconnect
+);
+
+</script>
+
+</body>
+</html>

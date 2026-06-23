@@ -61,6 +61,9 @@ void Application::initialize() {
    fSuccess = _bleTimeSyncProvider.initialize();
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
+   setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0/2", 1);
+   tzset();
+
    _displaySurface.getColorManager().setTheme(ColorTheme::WarmBusMarquee);
    _displaySurface.initialize();
    _displaySurface.clear();
