@@ -13,6 +13,7 @@ class BleTimeSyncProvider {
        "7d9f1001-6f8d-4b8a-9d4a-0e4f7a001001";
 
    bool          _fHasSynced;
+   time_t        _pendingSyncEpoch;
    time_t        _lastSyncEpoch;
    unsigned long _ulLastSyncMillis;
 

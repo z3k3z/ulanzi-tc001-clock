@@ -89,16 +89,6 @@ void Application::tick() {
    bool fColonDisplayDirty = false;
    int  iTimeValue         = 0;
 
-   // check if we have a pending time-sync event
-   {
-      bool fTimeWasUpdated = false;
-      fSuccess             = _serialTimeSyncProvider.handleTick(fTimeWasUpdated);
-      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-
-      fSuccess = _bleTimeSyncProvider.handleTick(fTimeWasUpdated);
-      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
-   }
-
    fSuccess = _getTimeAsInt(iTimeValue);
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
@@ -138,6 +128,14 @@ void Application::tick() {
 
    if (fDisplayDirty) {
       _displaySurface.show();
+   } else {
+      // check if we have a pending time-sync event
+      bool fTimeWasUpdated = false;
+      fSuccess             = _serialTimeSyncProvider.handleTick(fTimeWasUpdated);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+
+      fSuccess = _bleTimeSyncProvider.handleTick(fTimeWasUpdated);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
    }
 
 End:

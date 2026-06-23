@@ -6,7 +6,7 @@
 
 BleTimeSyncProvider::BleTimeSyncProvider() :
     _fHasSynced(false),
-    _lastSyncEpoch(0),
+    _pendingSyncEpoch(0),
     _ulLastSyncMillis(0),
     _pServer(nullptr),
     _pService(nullptr),
@@ -18,7 +18,7 @@ bool BleTimeSyncProvider::initialize() {
    EHInitialize;
 
    _fHasSynced       = false;
-   _lastSyncEpoch    = 0;
+   _pendingSyncEpoch = 0;
    _ulLastSyncMillis = 0;
 
    NimBLEDevice::init(_kDeviceName);
@@ -69,9 +69,25 @@ End:
 bool BleTimeSyncProvider::handleTick(bool& fTimeWasUpdated) {
    EHInitialize;
 
-   // First implementation applies time directly in BLE write callback.
-   // This method exists to mirror SerialTimeSyncProvider and preserve the provider shape.
    fTimeWasUpdated = false;
+   // do we have a pending time change?
+   if (0 != _pendingSyncEpoch) {
+      time_t epoch      = _pendingSyncEpoch;
+      _pendingSyncEpoch = 0;
+
+      bool fSuccess = _setSystemTime(epoch);
+      EHRaiseErrorWhenNotSuccess(fSuccess, (unsigned int)epoch);
+
+      _fHasSynced       = true;
+      _lastSyncEpoch    = epoch;
+      _ulLastSyncMillis = millis();
+      fTimeWasUpdated   = true;
+
+      Serial.print("BLE_TIME_SYNCED:epoch=");
+      Serial.print((long)epoch);
+      Serial.print(",millis=");
+      Serial.println(millis());
+   }
 
 End:
    if (EHErrorRaised) {
@@ -146,20 +162,8 @@ bool BleTimeSyncProvider::_processLine(const char* pszLine, bool& fTimeWasUpdate
    fTimeWasUpdated = false;
 
    fSuccess = _tryParseEpochCommand(pszLine, epoch);
-   if (fSuccess) {
-      fSuccess = _setSystemTime(epoch);
-      EHRaiseErrorWhenNotSuccess(fSuccess, (unsigned int)epoch);
-
-      _fHasSynced       = true;
-      _lastSyncEpoch    = epoch;
-      _ulLastSyncMillis = millis();
-      fTimeWasUpdated   = true;
-
-      Serial.print("BLE_TIME_SYNCED:epoch=");
-      Serial.print((long)epoch);
-      Serial.print(",millis=");
-      Serial.println(millis());
-   }
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+   _pendingSyncEpoch = epoch;
 
 End:
    if (EHErrorRaised) {
