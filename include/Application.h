@@ -1,6 +1,7 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
+#include "BleTimeSyncProvider.h"
 #include "ColonSeparator.h"
 #include "CoordinateMapper.h"
 #include "DigitSlot.h"
@@ -30,6 +31,7 @@ class Application {
    ColonSeparator         _colonSeparator;
    ValueTracker           _valueTracker;
    SerialTimeSyncProvider _serialTimeSyncProvider;
+   BleTimeSyncProvider    _bleTimeSyncProvider;
 
  public:
    Application(const IDigitProvider& iDigitProvider, const IDigitProvider& iDigitProviderAlt);

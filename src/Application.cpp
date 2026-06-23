@@ -40,7 +40,8 @@ Application::Application(const IDigitProvider& iDigitProvider,
     },
     _colonSeparator(Point(16, 0), _kMatrixHeight, _kColonBlinkIntervalMs),
     _valueTracker(),
-    _serialTimeSyncProvider() {
+    _serialTimeSyncProvider(),
+    _bleTimeSyncProvider() {
 
    _valueTracker.setInitialValue(0);
 }
@@ -55,6 +56,9 @@ void Application::initialize() {
    pinMode(_kBuzzerPin, INPUT_PULLDOWN);
 
    fSuccess = _serialTimeSyncProvider.initialize();
+   EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+
+   fSuccess = _bleTimeSyncProvider.initialize();
    EHRaiseErrorWhenNotSuccess(fSuccess, 0);
 
    _displaySurface.getColorManager().setTheme(ColorTheme::WarmBusMarquee);
@@ -89,6 +93,9 @@ void Application::tick() {
    {
       bool fTimeWasUpdated = false;
       fSuccess             = _serialTimeSyncProvider.handleTick(fTimeWasUpdated);
+      EHRaiseErrorWhenNotSuccess(fSuccess, 0);
+
+      fSuccess = _bleTimeSyncProvider.handleTick(fTimeWasUpdated);
       EHRaiseErrorWhenNotSuccess(fSuccess, 0);
    }
 
@@ -178,7 +185,7 @@ bool Application::_configurePower() {
    EHInitialize;
 
    WiFi.mode(WIFI_OFF); // disable WIFI
-   btStop();            // disable bluetooth
+   // btStop();            // disable bluetooth
 
    return EHIsSuccess;
 }

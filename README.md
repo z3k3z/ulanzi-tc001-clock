@@ -60,10 +60,15 @@ cd <repo-folder>
 File → Open Folder → select repo
 
 ### Build
-pio run
+pio run -or-
+from PlatformIO sidebar in VSCode: Project Tasks->esp32dev->General->Build
 
 ### Upload
-pio run --target upload
+pio run --target upload -or-
+from PlatformIO sidebar in VSCode: Project Tasks->esp32dev->General->Upload
+
+Note: the COM port to use is specified in ./platformio.ini
+use the PlatformIO sidebar in VSCode: Project Tasks->esp32dev->General->Devices to list the connected COM port
 
 ### Serial Monitor
 pio device monitor
